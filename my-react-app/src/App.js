@@ -22,7 +22,7 @@ function App() {
   const [isLoading1, setIsLoading1] = useState(false);
   const [isLoading2, setIsLoading2] = useState(false);
   const [cacheStatus, setCacheStatus] = useState(null);
-  const [showThroughputInMB, setShowThroughputInMB] = useState(true); // Toggle for throughput units
+  const [showThroughputInMB, setShowThroughputInMB] = useState(true);
 
   const fetchCacheStatus = async () => {
     try {
