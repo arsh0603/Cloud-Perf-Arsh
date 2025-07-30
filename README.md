@@ -20,7 +20,7 @@ firstprj-a/
 
 - **Backend**: Django (Python)
 - **Frontend**: React (JavaScript)
-- **Database**: SQLite (default Django database)
+- **Database**: 
 
 ## Features
 
@@ -32,8 +32,9 @@ firstprj-a/
 
 ### Prerequisites
 
-- Python 3.x
-- Node.js and npm
+- Python 3
+- Django 
+- React
 - Git
 
 ### Backend Setup (Django)
@@ -43,25 +44,19 @@ firstprj-a/
    cd firstitr
    ```
 
-2. Create a virtual environment:
+2. Install dependencies:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install django
+   pip3 install django
    ```
 
 4. Run migrations:
    ```bash
-   python manage.py migrate
+   python3 manage.py migrate
    ```
 
 5. Start the Django development server:
    ```bash
-   python manage.py runserver
+   python3 manage.py runserver
    ```
 
 ### Frontend Setup (React)
@@ -94,6 +89,3 @@ firstprj-a/
 4. Push to the branch
 5. Create a Pull Request
 
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
