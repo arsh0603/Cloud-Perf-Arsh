@@ -7,11 +7,29 @@ const RunIdInput = ({
   onId1Change, 
   onId2Change, 
   onSubmit, 
-  onSubmitId1, 
-  onSubmitId2, 
   isLoading1, 
-  isLoading2 
+  isLoading2,
+  inputError 
 }) => {
+  const handleSingleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(id1);
+  };
+
+  const handleCompareSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(id1, id2);
+  };
+
+  const handleSubmitId1 = (e) => {
+    e.preventDefault();
+    onSubmit(id1);
+  };
+
+  const handleSubmitId2 = (e) => {
+    e.preventDefault();
+    onSubmit(id2);
+  };
   return (
     <div className="dashboard-card">
       <h3 className="card-title">
@@ -19,7 +37,7 @@ const RunIdInput = ({
       </h3>
       
       {mode === 'single' ? (
-        <form onSubmit={onSubmit} className="form-section">
+        <form onSubmit={handleSingleSubmit} className="form-section">
           <div className="form-row">
             <div className="input-group">
               <label className="input-label">Run ID (9 characters)</label>
@@ -45,6 +63,7 @@ const RunIdInput = ({
               </button>
             </div>
           </div>
+          {inputError && <div className="error">⚠️ {inputError}</div>}
         </form>
       ) : (
         <div className="form-section">
@@ -77,7 +96,7 @@ const RunIdInput = ({
             <button 
               type="button" 
               className="btn btn-primary" 
-              onClick={onSubmitId1} 
+              onClick={handleSubmitId1} 
               disabled={isLoading1}
             >
               {isLoading1 ? (
@@ -92,7 +111,7 @@ const RunIdInput = ({
             <button 
               type="button" 
               className="btn btn-primary" 
-              onClick={onSubmitId2} 
+              onClick={handleSubmitId2} 
               disabled={isLoading2}
             >
               {isLoading2 ? (
@@ -107,7 +126,7 @@ const RunIdInput = ({
             <button 
               type="button" 
               className="btn btn-secondary" 
-              onClick={onSubmit} 
+              onClick={handleCompareSubmit} 
               disabled={isLoading1 || isLoading2}
             >
               {(isLoading1 || isLoading2) ? (
@@ -120,6 +139,7 @@ const RunIdInput = ({
               )}
             </button>
           </div>
+          {inputError && <div className="error">⚠️ {inputError}</div>}
         </div>
       )}
     </div>

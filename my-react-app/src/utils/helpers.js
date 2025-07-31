@@ -134,7 +134,82 @@ export const chartUtils = {
         pointHoverRadius: 6
       };
     });
-  }
+  },
+
+  prepareChartData: (graphData1, graphData2, showThroughputInMB = true) => {
+    const datasets = [];
+    
+    if (graphData1) {
+      datasets.push(...chartUtils.formatChartData(graphData1, 'ID1', showThroughputInMB));
+    }
+    
+    if (graphData2) {
+      datasets.push(...chartUtils.formatChartData(graphData2, 'ID2', showThroughputInMB));
+    }
+    
+    return { datasets };
+  },
+
+  getChartOptions: (showThroughputInMB = true) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        type: 'linear',
+        position: 'bottom',
+        title: {
+          display: true,
+          text: showThroughputInMB ? 'Throughput (MB/s)' : 'Throughput (bytes/sec)',
+          font: { size: 12, weight: 'bold' }
+        },
+        grid: { color: CONSTANTS.CHART_COLORS.GRID }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Latency (μs)',
+          font: { size: 12, weight: 'bold' }
+        },
+        grid: { color: CONSTANTS.CHART_COLORS.GRID }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: { 
+          usePointStyle: true,
+          font: { size: 11 }
+        }
+      },
+      tooltip: {
+        backgroundColor: CONSTANTS.CHART_COLORS.TOOLTIP_BG,
+        titleColor: CONSTANTS.CHART_COLORS.TOOLTIP_TEXT,
+        bodyColor: CONSTANTS.CHART_COLORS.TOOLTIP_TEXT,
+        callbacks: {
+          title: function(context) {
+            return context[0].raw.label || '';
+          },
+          label: function(context) {
+            const throughputUnit = showThroughputInMB ? 'MB/s' : 'bytes/sec';
+            const throughputValue = showThroughputInMB ? 
+              context.raw.x.toFixed(2) : 
+              context.raw.x.toLocaleString();
+            
+            return [
+              `${context.dataset.label}`,
+              `Throughput: ${throughputValue} ${throughputUnit}`,
+              `Latency: ${context.raw.y.toFixed(2)} μs`
+            ];
+          }
+        }
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index'
+    }
+  })
 };
 
 // Constants
