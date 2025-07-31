@@ -1,6 +1,6 @@
 # Firstprj-A - Performance Analytics Dashboard
 
-A modular full-stack application for analyzing NetApp performance data, combining a Django backend with a React frontend.
+A modular full-stack application for analyzing OnTap performance data, combining a Django backend with a React frontend.
 
 ## Project Structure
 
@@ -40,7 +40,6 @@ firstprj-a/
 
 - **Backend**: Django (Python)
 - **Frontend**: React (JavaScript)
-- **Database**: SQLite (default Django database)
 
 ## Features
 
@@ -72,8 +71,10 @@ firstprj-a/
 
 ### Prerequisites
 
-- Python 3.x
-- Node.js and npm
+- Python 3
+- Django
+- React
+- Javascript
 - Git
 
 ### Backend Setup (Django)
@@ -83,15 +84,9 @@ firstprj-a/
    cd firstitr
    ```
 
-2. Create a virtual environment:
+2. Install dependencies:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install django
+   pip3 install django
    ```
 
 3. **Run system checks:**
@@ -106,7 +101,7 @@ firstprj-a/
 
 5. **Start the development server:**
    ```bash
-   python manage.py runserver
+   python3 manage.py runserver
    ```
 
 ### Frontend Setup (React)
@@ -291,6 +286,3 @@ npm install
 - Use `DELETE /api/cache-management/` to clear cache
 - Check cache status with `GET /api/cache-status/`
 
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
