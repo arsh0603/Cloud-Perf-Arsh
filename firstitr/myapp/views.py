@@ -54,6 +54,7 @@ class FetchGraphDataView(View):
             else:
                 # Single mode - fetch data for one run
                 result = GraphDataManagerService.fetch_single_graph_data(id1)
+                print(result)
                 if not result:
                     return JsonResponse({'error': f'No graph data found for run {id1}'}, status=404)
             

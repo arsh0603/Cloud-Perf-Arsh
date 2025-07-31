@@ -186,7 +186,8 @@ class GraphDataManagerService:
         cached_data = api_cache.get(cache_key)
         if cached_data:
             print(f"Found graph data in memory cache for {run_id}")
-            return {run_id: cached_data}
+            # Return in consistent format with data_points wrapper
+            return {'data_points': {run_id: cached_data}}
         
         # Fetch from external sources
         print(f"Fetching graph data from external API for {run_id}")
@@ -196,8 +197,10 @@ class GraphDataManagerService:
             if graph_data:
                 # Cache the result
                 api_cache.put(cache_key, graph_data)
-                return {run_id: graph_data}
+                # Return in consistent format with data_points wrapper
+                return {'data_points': {run_id: graph_data}}
             else:
+                return None
                 print(f"No graph data found for {run_id}")
                 return None
                 
@@ -222,16 +225,16 @@ class GraphDataManagerService:
         
         # Fetch data for first run
         graph_data1 = cls.fetch_single_graph_data(run_id1)
-        if graph_data1:
-            data_points.update(graph_data1)
+        if graph_data1 and 'data_points' in graph_data1:
+            data_points.update(graph_data1['data_points'])
         else:
             missing_data_messages.append(f"No graph data available for run ID: {run_id1}")
         
         # Fetch data for second run if provided
         if run_id2:
             graph_data2 = cls.fetch_single_graph_data(run_id2)
-            if graph_data2:
-                data_points.update(graph_data2)
+            if graph_data2 and 'data_points' in graph_data2:
+                data_points.update(graph_data2['data_points'])
             else:
                 missing_data_messages.append(f"No graph data available for run ID: {run_id2}")
         
@@ -245,9 +248,9 @@ class GraphDataManagerService:
         if run_id1 and run_id2 and run_id1 in data_points and run_id2 in data_points:
             compatibility = cls._check_graph_compatibility(run_id1, run_id2)
             if not compatibility['compatible']:
-                return {
-                    'error': f"Cannot generate graph comparison for runs with different {compatibility['error_type']} types",
-                    'message': f"{compatibility['error_type'].title()} types must be identical for meaningful comparison",
+                # Return data with compatibility warning instead of error
+                response_data['compatibility_warning'] = {
+                    'message': f"Cannot generate meaningful comparison for runs with different {compatibility['error_type']} types",
                     'error_type': compatibility['error_type'],
                     **compatibility
                 }

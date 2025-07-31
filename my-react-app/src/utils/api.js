@@ -5,6 +5,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 export const API_ENDPOINTS = {
   fetchDetails: `${API_BASE_URL}/fetch-details/`,
   fetchGraphData: `${API_BASE_URL}/fetch-graph-data/`,
+  cacheStatus: `${API_BASE_URL}/cache-status/`,
   cacheManagement: `${API_BASE_URL}/cache-management/`,
   fetchMultipleRuns: `${API_BASE_URL}/fetch-multiple-runs/`,
 };
@@ -60,7 +61,7 @@ export const apiService = {
 
   // Fetch cache status
   fetchCacheStatus: async () => {
-    return apiRequest(API_ENDPOINTS.cacheManagement);
+    return apiRequest(API_ENDPOINTS.cacheStatus);
   },
 
   // Clear cache

@@ -10,23 +10,29 @@ export const useRunData = () => {
   const [isLoading2, setIsLoading2] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchSingleRun = useCallback(async (id, setDataFunction, setLoadingFunction) => {
+  const fetchSingleRun = useCallback(async (id, isSecondId = false) => {
     if (!validation.isValidRunId(id)) {
       return;
     }
 
-    setLoadingFunction(true);
+    const setLoading = isSecondId ? setIsLoading2 : setIsLoading1;
+    const setData = isSecondId ? setData2 : setData1;
+    
+    setLoading(true);
     setError(null);
 
     try {
       const result = await apiService.fetchSingleDetails(id);
-      setDataFunction(result);
+      setData(result);
+      if (!isSecondId) {
+        setData2(null); // Clear data2 only when loading ID1
+      }
     } catch (error) {
       console.error('Error fetching run data:', error);
       setError(error.message);
-      setDataFunction(null);
+      setData(null);
     } finally {
-      setLoadingFunction(false);
+      setLoading(false);
     }
   }, []);
 
@@ -175,7 +181,11 @@ export const useGraphData = () => {
         setGraphData2({ [id2]: result.data_points[id2] });
       }
 
-      if (result.missing_data && result.missing_data.length > 0) {
+      // Handle different types of warnings/messages
+      if (result.compatibility_warning) {
+        const warningMsg = result.compatibility_warning.message;
+        setGraphError(`⚠️ ${warningMsg}`);
+      } else if (result.missing_data && result.missing_data.length > 0) {
         const missingDataMessage = result.missing_data.join('. ');
         setGraphError(`⚠️ ${missingDataMessage}`);
       }

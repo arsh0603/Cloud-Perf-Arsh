@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SystemStatus = ({ cacheStatus }) => {
+const SystemStatus = ({ cacheStatus, onClearCache }) => {
   return (
     <div className="dashboard-card">
       <h3 className="card-title">System Status</h3>
@@ -8,13 +8,23 @@ const SystemStatus = ({ cacheStatus }) => {
         <div className="status-grid">
           <div className="status-card">
             <h5>Memory Cache</h5>
-            <p><strong>Items:</strong> {cacheStatus.memory_cache?.size || 0}/{cacheStatus.memory_cache?.max_size || 20}</p>
-            <p><strong>Details:</strong> {cacheStatus.memory_cache?.details_keys?.length || 0} entries</p>
-            <p><strong>Graphs:</strong> {cacheStatus.memory_cache?.graph_keys?.length || 0} entries</p>
-            {cacheStatus.memory_cache?.access_order?.length > 0 && (
+            <p><strong>Items:</strong> {cacheStatus.size || 0}/{cacheStatus.max_size || 20}</p>
+            <p><strong>Details:</strong> {cacheStatus.details_keys?.length || 0} entries</p>
+            <p><strong>Graphs:</strong> {cacheStatus.graph_keys?.length || 0} entries</p>
+            {cacheStatus.access_order?.length > 0 && (
               <p style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                <strong>Recent:</strong> {cacheStatus.memory_cache.access_order.slice(-3).join(', ')}
+                <strong>Recent:</strong> {cacheStatus.access_order.slice(-3).join(', ')}
               </p>
+            )}
+            {onClearCache && (
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={onClearCache}
+                style={{ marginTop: '10px', fontSize: '0.8rem' }}
+              >
+                🗑️ Clear Cache
+              </button>
             )}
           </div>
         </div>

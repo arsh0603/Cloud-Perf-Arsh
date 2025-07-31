@@ -9,8 +9,11 @@ export const validation = {
   validateRunIds: (...ids) => {
     const errors = [];
     ids.forEach((id, index) => {
-      if (!validation.isValidRunId(id)) {
-        errors.push(`ID ${index + 1} must be exactly 9 characters long.`);
+      // Skip null, undefined, or empty string IDs (for optional second ID)
+      if (id !== null && id !== undefined && id !== '') {
+        if (!validation.isValidRunId(id)) {
+          errors.push(`ID ${index + 1} must be exactly 9 characters long.`);
+        }
       }
     });
     return {
