@@ -121,6 +121,9 @@ class DataTransformService:
         Returns:
             Transformed data with user-friendly field names
         """
+        if not raw_data:
+            return {}
+            
         return {
             cls.FIELD_MAPPINGS.get(key, key): value
             for key, value in raw_data.items()

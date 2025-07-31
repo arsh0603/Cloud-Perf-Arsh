@@ -7,7 +7,7 @@ const Header = () => {
         <div className="logo">
           <img src="/netapp.png" alt="NetApp Logo" className="logo-image" />
         </div>
-        <h1 className="header-title">Performance Analytics Dashboard</h1>
+        <h1 className="header-title">Perf Data Visualization</h1>
       </div>
     </header>
   );
