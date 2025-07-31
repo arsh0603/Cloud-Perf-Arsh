@@ -38,12 +38,9 @@ firstprj-a/
 
 ## Technologies Used
 
-- **Backend**: Django 5.2.4 (Python) with modular service architecture
-- **Frontend**: React 18+ with hooks and Chart.js integration
+- **Backend**: Django (Python)
+- **Frontend**: React (JavaScript)
 - **Database**: SQLite (default Django database)
-- **External APIs**: NetApp performance systems (Grover, Perfweb)
-- **Caching**: Custom LRU cache implementation
-- **Charts**: Chart.js with react-chartjs-2 for performance visualization
 
 ## Features
 
@@ -75,29 +72,9 @@ firstprj-a/
 
 ### Prerequisites
 
-- **Python 3.8+** (tested with Python 3.13)
-- **Node.js 16+** and npm
-- **Git**
-- Access to NetApp internal networks (for external API calls)
-
-### Quick Start
-
-Both servers can be started simultaneously:
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd Firstprj-A
-
-# Start Django backend (Terminal 1)
-cd firstitr
-python3 manage.py runserver 8000
-
-# Start React frontend (Terminal 2) 
-cd my-react-app
-npm install
-npm start
-```
+- Python 3.x
+- Node.js and npm
+- Git
 
 ### Backend Setup (Django)
 
@@ -106,7 +83,13 @@ npm start
    cd firstitr
    ```
 
-2. **Install Django (if not installed):**
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
    ```bash
    pip install django
    ```
@@ -123,7 +106,7 @@ npm start
 
 5. **Start the development server:**
    ```bash
-   python3 manage.py runserver 8000
+   python manage.py runserver
    ```
 
 ### Frontend Setup (React)
@@ -311,9 +294,3 @@ npm install
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-
----
-
-## Performance Analytics Dashboard
-
-This application provides comprehensive analysis tools for NetApp performance testing results, featuring modular architecture, intelligent caching, and interactive data visualization.
