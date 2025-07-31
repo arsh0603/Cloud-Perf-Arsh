@@ -8,11 +8,11 @@ from .cache_manager import api_cache
 
 class FetchDetailsView(View):
     def get(self, request):
-        id1 = request.GET.get('id1')
+        id1 = request.GET.get('id1') or request.GET.get('id')  # Support both id1 and id parameters
         id2 = request.GET.get('id2')
         
         if not id1:
-            return JsonResponse({'error': 'id1 parameter is required'}, status=400)
+            return JsonResponse({'error': 'id1 or id parameter is required'}, status=400)
         
         combined_data = {}
         
@@ -39,6 +39,12 @@ class FetchDetailsView(View):
         
         # Validate workload compatibility for comparison
         combined_data = self._validate_workload_compatibility(combined_data)
+        
+        # If this is a single ID request (no id2), return flat response for compatibility
+        if not id2 and 'id1' in combined_data:
+            return JsonResponse(combined_data['id1'], safe=False)
+        elif not id2 and 'error_id1' in combined_data:
+            return JsonResponse({'error': combined_data['error_id1']}, status=400)
         
         return JsonResponse(combined_data, safe=False)
     
@@ -437,62 +443,7 @@ class FetchGraphDataView(View):
                 'workload2': 'Unknown'
             }
     
-class FetchSingleDetailsView(View):
-    def get(self, request):
-        run_id = request.GET.get('id')
-        
-        if not run_id:
-            return JsonResponse({'error': 'id parameter is required'}, status=400)
-        
-        # Check memory cache first (fastest)
-        cache_key = f"details_{run_id}"
-        cached_data = api_cache.get(cache_key)
-        if cached_data:
-            print(f"Found details data in memory cache for {run_id}")
-            print(f"Cached data: {cached_data}")
-            return JsonResponse(cached_data, safe=False)
-        
-        # Fetch from external API if not in memory cache
-        print(f"Fetching details data from external API for {run_id}")
-        api_url = f'http://grover.rtp.netapp.com/KO/rest/api/Runs/{run_id}?req_fields=workload,peak_iter,ontap_ver,peak_ops,peak_lat,model'
 
-        try:
-            response = requests.get(api_url)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get('workload') == 0:
-                return JsonResponse({'error': f'ID {run_id} is incorrect.'}, status=400)
-            
-            # Rename fields to user-friendly names
-            renamed_data = {
-                'Workload Type': data.get('workload'),
-                'Peak Iteration': data.get('peak_iter'),
-                'ONTAP version': data.get('ontap_ver'),
-                'Achieved Ops': data.get('peak_ops'),
-                'Peak Latency': data.get('peak_lat'),
-                'Model': data.get('model')
-            }
-            
-            print(f"Fetched data for {run_id}: {renamed_data}")
-            # Fetch and merge stats data
-            try:
-                stats_data = self.fetch_stats_data(run_id)
-                renamed_data.update(stats_data)
-            except Exception as e:
-                print(f"Error fetching stats data: {e}")
-                renamed_data['stats_error'] = f"Could not fetch stats data: {str(e)}"
-            
-            # Store in memory cache
-            api_cache.put(cache_key, renamed_data)
-            
-            return JsonResponse(renamed_data, safe=False)
-            
-        except requests.exceptions.RequestException as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    def fetch_stats_data(self, run_id):
-        return FetchDetailsView().fetch_stats_data(run_id)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CacheManagementView(View):
