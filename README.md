@@ -162,10 +162,32 @@ npm start
 
 - **`GET /api/cache-status/`** - Get cache status information
 
-- **`DELETE /api/cache-management/`** - Clear cache
+- **`DELETE /api/cache-management/`** - Clear cache (DELETE method only)
 
 - **`GET /api/fetch-multiple-runs/`** - Batch fetch multiple runs
   - `?run_ids=<id1>,<id2>,<id3>` - Comma-separated run IDs
+
+### API Usage Examples
+
+```bash
+# Get cache status
+curl http://localhost:8000/api/cache-status/
+
+# Fetch single run data  
+curl "http://localhost:8000/api/fetch-details/?id1=250725hbn"
+
+# Compare two runs
+curl "http://localhost:8000/api/fetch-details/?id1=250725hbn&id2=250726xyz"
+
+# Get graph data for single run
+curl "http://localhost:8000/api/fetch-graph-data/?run_id1=250725hbn"
+
+# Clear cache
+curl -X DELETE http://localhost:8000/api/cache-management/
+
+# Fetch multiple runs
+curl "http://localhost:8000/api/fetch-multiple-runs/?run_ids=250725hbn,250726xyz,250727abc"
+```
 
 ## Usage
 
