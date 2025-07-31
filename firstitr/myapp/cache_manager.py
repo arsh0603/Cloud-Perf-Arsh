@@ -25,18 +25,14 @@ class LRUCache:
                 with open(self.cache_file, 'r') as f:
                     data = json.load(f)
                     
-                # Load cache items
                 cache_items = data.get('cache', {})
                 access_times = data.get('access_times', {})
                 
-                # If there are more than max_size items, keep only the most recent ones
                 if len(cache_items) > self.max_size:
-                    # Sort by access time and keep the most recent max_size items
                     sorted_items = sorted(cache_items.items(), 
                                         key=lambda x: access_times.get(x[0], 0), 
                                         reverse=True)
                     cache_items = dict(sorted_items[:self.max_size])
-                    # Update access_times to match
                     access_times = {k: v for k, v in access_times.items() if k in cache_items}
                 
                 self.cache = OrderedDict(cache_items)
@@ -63,11 +59,10 @@ class LRUCache:
         """Get item from cache and mark as recently used"""
         with self.lock:
             if key in self.cache:
-                # Move to end (most recently used)
                 value = self.cache.pop(key)
                 self.cache[key] = value
                 self.access_times[key] = time.time()
-                self._save_to_file()  # Save after access
+                self._save_to_file()  
                 print(f"Cache HIT for key: {key}")
                 return value
             print(f"Cache MISS for key: {key}")
@@ -77,10 +72,8 @@ class LRUCache:
         """Put item in cache, evicting LRU if necessary"""
         with self.lock:
             if key in self.cache:
-                # Update existing item
                 self.cache.pop(key)
             elif len(self.cache) >= self.max_size:
-                # Remove least recently used item
                 lru_key = next(iter(self.cache))
                 self.cache.pop(lru_key)
                 self.access_times.pop(lru_key, None)
@@ -88,7 +81,7 @@ class LRUCache:
             
             self.cache[key] = value
             self.access_times[key] = time.time()
-            self._save_to_file()  # Save after each put
+            self._save_to_file()  
             print(f"Cache STORED key: {key}, Cache size: {len(self.cache)}")
     
     def clear(self) -> None:
@@ -96,7 +89,7 @@ class LRUCache:
         with self.lock:
             self.cache.clear()
             self.access_times.clear()
-            self._save_to_file()  # Save after clearing
+            self._save_to_file()  
             print("Cache cleared")
     
     def get_status(self) -> Dict:
@@ -114,5 +107,4 @@ class LRUCache:
                 'access_times': dict(self.access_times)
             }
 
-# Global cache instance
 api_cache = LRUCache(max_size=20)

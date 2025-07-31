@@ -3,7 +3,6 @@ from .views import FetchDetailsView, FetchGraphDataView, CacheManagementView, Fe
 
 urlpatterns = [
     path('fetch-details/', FetchDetailsView.as_view(), name='fetch_details'),
-    path('fetch-single-details/', FetchDetailsView.as_view(), name='fetch_single_details'),  # Redirects to same view
     path('fetch-graph-data/', FetchGraphDataView.as_view(), name='fetch_graph_data'),
     path('fetch-multiple-runs/', FetchMultipleRunsView.as_view(), name='fetch_multiple_runs'),
     path('cache-management/', CacheManagementView.as_view(), name='cache_management'),

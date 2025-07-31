@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import {Line} from 'react-chartjs-2';
-import Chart from 'chart.js/auto';
 
 function App() {
   const [mode, setMode] = useState('single');
@@ -47,7 +46,7 @@ function App() {
     
     setLoadingFunction(true);
     try {
-      const url = `http://localhost:8000/api/fetch-single-details/?id=${id}`;
+      const url = `http://localhost:8000/api/fetch-details/?id=${id}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -56,7 +55,6 @@ function App() {
       const result = await response.json();
       setDataFunction(result);
       
-      // Refresh cache status after successful fetch
       fetchCacheStatus();
     } catch (error) {
       setError(error.toString());
@@ -70,7 +68,6 @@ function App() {
     const newId = e.target.value;
     setId1(newId);
     
-    // Clear graph data if the ID has changed from what was previously submitted
     if (submittedId1 && newId !== submittedId1) {
       setGraphData1(null);
     }
@@ -80,7 +77,6 @@ function App() {
     const newId = e.target.value;
     setId2(newId);
     
-    // Clear graph data if the ID has changed from what was previously submitted
     if (submittedId2 && newId !== submittedId2) {
       setGraphData2(null);
     }
@@ -101,7 +97,6 @@ function App() {
     setGraphError(null);
     setGraphData1(null);
     setGraphData2(null);
-    // Clear workload compatibility status
     window.comparisonAllowed = undefined;
   };
 
@@ -133,7 +128,6 @@ function App() {
         return;
       }
       
-      // Use the compare API endpoint for validation
       setIsLoading1(true);
       setIsLoading2(true);
       
@@ -146,7 +140,6 @@ function App() {
         
         const result = await response.json();
         
-        // Set individual data
         if (result.id1) {
           setData1(result.id1);
         }
@@ -154,7 +147,6 @@ function App() {
           setData2(result.id2);
         }
         
-        // Handle errors
         if (result.error_id1) {
           setError(result.error_id1);
         }
@@ -162,7 +154,6 @@ function App() {
           setError(result.error_id2);
         }
         
-        // Handle workload and model compatibility
         if (result.comparison_error) {
           if (result.comparison_error.error_type === 'workload') {
             setError(`⚠️ ${result.comparison_error.message}: ID1 workload (${result.comparison_error.workload_id1}) vs ID2 workload (${result.comparison_error.workload_id2})`);
@@ -171,20 +162,16 @@ function App() {
             setError(`⚠️ ${result.comparison_error.message}: ID1 model (${result.comparison_error.model_id1}) vs ID2 model (${result.comparison_error.model_id2})`);
             setGraphError('Graph comparison disabled due to different model types');
           }
-          // Clear any existing graph data since comparison is not allowed
           setGraphData1(null);
           setGraphData2(null);
-          // Set comparison as not allowed
           window.comparisonAllowed = false;
         } else {
-          // If no comparison_error, set as allowed
           window.comparisonAllowed = true;
         }
         
         setSubmittedId1(id1);
         setSubmittedId2(id2);
         
-        // Refresh cache status after successful fetch
         fetchCacheStatus();
       } catch (error) {
         setError(error.toString());
@@ -210,7 +197,6 @@ function App() {
     await fetchDataForId(id1, setData1, setIsLoading1);
     setSubmittedId1(id1);
     
-    // Check workload compatibility after loading
     setTimeout(() => checkWorkloadCompatibility(), 100);
   };
 
@@ -227,7 +213,6 @@ function App() {
     await fetchDataForId(id2, setData2, setIsLoading2);
     setSubmittedId2(id2);
     
-    // Check workload compatibility after loading
     setTimeout(() => checkWorkloadCompatibility(), 100);
   };
 
@@ -236,7 +221,6 @@ function App() {
     setGraphError(null);
     
     if (mode === 'compare') {
-      // Validate both IDs length
       if (id1.length !== 9) {
         setGraphError('ID 1 must be exactly 9 characters long.');
         return;
@@ -246,7 +230,6 @@ function App() {
         return;
       }
       
-      // Check workload and model compatibility in compare mode
       if (window.comparisonAllowed === false) {
         const errorType = error && error.includes('model types') ? 'model types' : 'workload types';
         setGraphError(`❌ Cannot generate comparison graph: Runs have different ${errorType} and cannot be meaningfully compared`);
@@ -254,7 +237,6 @@ function App() {
       }
       
       
-      // For compare mode, check if we already have both graph data
       const hasGraphData1 = graphData1 && submittedId1 === id1;
       const hasGraphData2 = graphData2 && submittedId2 === id2;
       
@@ -276,7 +258,6 @@ function App() {
         return;
       }
       
-      // Check if we already have graph data for this ID
       if (graphData1 && submittedId1 === id1) {
         console.log('Graph data for ID1 already exists, skipping fetch');
         return;
@@ -300,7 +281,6 @@ function App() {
       return;
     }
     
-    // Check if we already have graph data for this ID
     if (graphData1 && submittedId1 === id1) {
       console.log('Graph data for ID1 already exists, skipping fetch');
       return;
@@ -323,7 +303,6 @@ function App() {
       return;
     }
     
-    // Check if we already have graph data for this ID
     if (graphData2 && submittedId2 === id2) {
       console.log('Graph data for ID2 already exists, skipping fetch');
       return;
@@ -371,13 +350,11 @@ function App() {
         setGraphData1(result.data_points);
       }
       
-      // Handle missing data messages
       if (result.missing_data && result.missing_data.length > 0) {
         const missingDataMessage = result.missing_data.join('. ');
         setGraphError(`⚠️ ${missingDataMessage}`);
       }
       
-      // Refresh cache status after graph fetch
       fetchCacheStatus();
     } catch (error) {
       console.error('Graph loading error:', error);
@@ -411,7 +388,6 @@ function App() {
       return;
     }
 
-    // Check workload and model compatibility before fetching graph data
     if (window.comparisonAllowed === false) {
       const errorType = error && error.includes('model types') ? 'model types' : 'workload types';
       setGraphError(`Cannot generate comparison graph: Runs have different ${errorType}`);
@@ -422,7 +398,6 @@ function App() {
     const startTime = Date.now();
     console.log('Starting graph data fetch for both IDs...');
     
-    // Check which data we need to fetch
     const needsData1 = !graphData1 || submittedId1 !== id1;
     const needsData2 = !graphData2 || submittedId2 !== id2;
     
@@ -433,7 +408,6 @@ function App() {
     }
     
     try {
-      // Use the backend API that validates workload compatibility
       const url = `http://localhost:8000/api/fetch-graph-data/?run_id1=${id1}&run_id2=${id2}`;
       console.log('Fetching graph data for both IDs from:', url);
       
@@ -455,7 +429,6 @@ function App() {
         throw new Error('No data points received from backend');
       }
 
-      // Set graph data for both IDs if available
       if (result.data_points[id1]) {
         setGraphData1({ [id1]: result.data_points[id1] });
       }
@@ -463,7 +436,6 @@ function App() {
         setGraphData2({ [id2]: result.data_points[id2] });
       }
       
-      // Handle missing data messages
       if (result.missing_data && result.missing_data.length > 0) {
         const missingDataMessage = result.missing_data.join('. ');
         setGraphError(`⚠️ ${missingDataMessage}`);
@@ -478,14 +450,12 @@ function App() {
     }
   };
 
-  // Generate perfweb link for a run ID
   const generatePerfwebLink = (runId) => {
     if (!runId || runId.length < 4) return null;
     const yearMonth = runId.substring(0, 4);
     return `http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/${yearMonth}/${runId}/cloud_test_harness.log`;
   };
 
-  // Helper function to check workload and model compatibility after individual loads
   const checkWorkloadCompatibility = () => {
     if (mode === 'compare' && data1 && data2) {
       const workload1 = data1['Workload Type'];
@@ -493,7 +463,6 @@ function App() {
       const model1 = data1['Model'];
       const model2 = data2['Model'];
 
-      // Always allow individual data and graphs, but disable comparison if not compatible
       if (workload1 && workload2) {
         if (workload1 !== workload2) {
           window.comparisonAllowed = false;
@@ -516,14 +485,12 @@ function App() {
     }
   };
 
-  // Check workload compatibility whenever data changes
   useEffect(() => {
     checkWorkloadCompatibility();
   }, [data1, data2, mode]);
 
   return (
     <div className="App">
-      {/* Header */}
       <header className="header">
         <div className="header-content">
           <div className="logo">
@@ -533,10 +500,8 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="main-content">
         
-        {/* Mode Selection */}
         <div className="dashboard-card">
           <h3 className="card-title">Analysis Mode</h3>
           <div className="mode-toggle">
@@ -555,7 +520,6 @@ function App() {
           </div>
         </div>
 
-        {/* Input Section */}
         <div className="dashboard-card">
           <h3 className="card-title">
             {mode === 'single' ? 'Run ID Input' : 'Compare Run IDs'}
@@ -667,7 +631,6 @@ function App() {
           )}
         </div>
 
-        {/* Graph Controls */}
         {(data1 || data2) && (
           <div className="dashboard-card">
             <h3 className="card-title">Performance Graphs</h3>
@@ -762,7 +725,6 @@ function App() {
           </div>
         )}
 
-        {/* Cache Status */}
         <div className="dashboard-card">
           <h3 className="card-title">System Status</h3>
           {cacheStatus ? (
@@ -787,17 +749,14 @@ function App() {
           )}
         </div>
 
-        {/* Error Messages */}
         {inputError && <div className="error">⚠️ {inputError}</div>}
         {error && <div className="warning">⚠️ {error}</div>}
         {graphError && <div className="error">❌ {graphError}</div>}
 
-        {/* Data Table */}
         {(data1 || data2) && (
           <div className="dashboard-card">
             <h3 className="card-title">Performance Data</h3>
             
-            {/* Compatibility Status */}
             {mode === 'compare' && data1 && data2 && (
               <div className={`compatibility-status ${window.comparisonAllowed === false ? 'incompatible' : 'compatible'}`}>
                 {window.comparisonAllowed === false ? (
@@ -913,12 +872,10 @@ function App() {
           </div>
         )}
         
-        {/* Chart Section */}
         {(graphData1 || graphData2) && (
           <div className="dashboard-card">
             <h3 className="card-title">📈 Latency vs Throughput Performance</h3>
             
-            {/* Compatibility Warning for Charts */}
             {mode === 'compare' && graphData1 && graphData2 && window.comparisonAllowed === false && data1 && data2 && (
               <div className="warning-message">
                 ⚠️ <strong>Note:</strong> These graphs show different {error && error.includes('model types') ? 'model types' : 'workload types'} 
@@ -1028,7 +985,6 @@ function App() {
           </div>
         )}
 
-        {/* Loading Indicator */}
         {(isLoadingGraph1 || isLoadingGraph2 || isLoadingGraph) && (
           <div className="loading-indicator">
             <span className="loading-spinner"></span>

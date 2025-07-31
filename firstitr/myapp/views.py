@@ -16,7 +16,6 @@ class FetchDetailsView(View):
         
         combined_data = {}
         
-        # Fetch data for id1 with caching
         try:
             data1 = self._fetch_single_run_with_cache(id1)
             if data1:
@@ -26,7 +25,6 @@ class FetchDetailsView(View):
         except Exception as e:
             combined_data['error_id1'] = f'Error fetching ID 1: {str(e)}'
         
-        # Fetch data for id2 with caching if provided
         if id2:
             try:
                 data2 = self._fetch_single_run_with_cache(id2)
@@ -37,10 +35,8 @@ class FetchDetailsView(View):
             except Exception as e:
                 combined_data['error_id2'] = f'Error fetching ID 2: {str(e)}'
         
-        # Validate workload compatibility for comparison
         combined_data = self._validate_workload_compatibility(combined_data)
         
-        # If this is a single ID request (no id2), return flat response for compatibility
         if not id2 and 'id1' in combined_data:
             return JsonResponse(combined_data['id1'], safe=False)
         elif not id2 and 'error_id1' in combined_data:
@@ -50,14 +46,12 @@ class FetchDetailsView(View):
     
     def _fetch_single_run_with_cache(self, run_id):
         """Fetch data for a single run ID with caching (similar to FetchSingleDetailsView)"""
-        # Check memory cache first (fastest)
         cache_key = f"details_{run_id}"
         cached_data = api_cache.get(cache_key)
         if cached_data:
             print(f"Found details data in memory cache for {run_id}")
             return cached_data
         
-        # Fetch from external API if not in memory cache
         print(f"Fetching details data from external API for {run_id}")
         api_url = f'http://grover.rtp.netapp.com/KO/rest/api/Runs/{run_id}?req_fields=workload,peak_iter,ontap_ver,peak_ops,model,peak_lat'
         
@@ -67,9 +61,8 @@ class FetchDetailsView(View):
             data = response.json()
             
             if data.get('workload') == 0:
-                return None  # Invalid ID
+                return None  
             
-            # Rename fields to user-friendly names
             renamed_data = {
                 'Workload Type': data.get('workload'),
                 'Peak Iteration': data.get('peak_iter'),
@@ -79,7 +72,6 @@ class FetchDetailsView(View):
                 'Peak Latency': data.get('peak_lat'),
             }
 
-            # Fetch and merge stats data
             try:
                 stats_data = self.fetch_stats_data(run_id)
                 renamed_data.update(stats_data)
@@ -87,7 +79,6 @@ class FetchDetailsView(View):
                 print(f"Error fetching stats data: {e}")
                 renamed_data['stats_error'] = f"Could not fetch stats data: {str(e)}"
             finally:
-                # Store in memory cache
                 api_cache.put(cache_key, renamed_data)
 
             print(f"Fetched data for {run_id}: {renamed_data}")
@@ -105,7 +96,6 @@ class FetchDetailsView(View):
             model1 = combined_data['id1'].get('Model')
             model2 = combined_data['id2'].get('Model')
             
-            # First check workload types
             if workload1 and workload2 and workload1 != workload2:
                 combined_data['comparison_error'] = {
                     'message': 'Cannot compare runs with different workload types',
@@ -114,7 +104,6 @@ class FetchDetailsView(View):
                     'comparison_allowed': False,
                     'error_type': 'workload'
                 }
-            # Then check model types (only if workload types match)
             elif model1 and model2 and model1 != model2:
                 combined_data['comparison_error'] = {
                     'message': 'Cannot compare runs with different model types',
@@ -149,7 +138,7 @@ class FetchDetailsView(View):
                 all_rdma_stats = []
                 all_ldma_stats = []
                 all_cpu_busy = []
-                instance_type = None  # Since it's same across iterations, we only need one
+                instance_type = None  
                 
                 for link in links:
                     stats_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/ontap_command_output/{link.split("/")[-1]}/stats_workload.txt'
@@ -205,7 +194,6 @@ class FetchDetailsView(View):
                     if write_stats_response.ok:
                         write_stats_text = write_stats_response.text
 
-                        # Extract both WAFL write latencies
                         rdma_latency_match = re.search(r'rdma_actual_latency\.WAFL_SPINNP_WRITE:(\d+(?:\.\d+)?)us', write_stats_text)
                         if rdma_latency_match:
                             all_rdma_stats.append(float(rdma_latency_match.group(1)))
@@ -258,53 +246,42 @@ class FetchGraphDataView(View):
 
         data_points = {}
         
-        # Process run_id1
         cache_key1 = f"graph_{run_id1}"
-        # Check memory cache first
         cached_graph1 = api_cache.get(cache_key1)
         
         if cached_graph1:
             print(f"Found graph data in memory cache for {run_id1}")
             data_points[run_id1] = cached_graph1
         else:
-            # Fetch from external API
             print(f"Fetching graph data from external API for {run_id1}")
             graph_data1 = self._fetch_graph_data_for_id(run_id1)
             if graph_data1:
                 data_points[run_id1] = graph_data1
-                # Store in memory cache
                 api_cache.put(cache_key1, graph_data1)
             else:
                 print(f"No graph data found for {run_id1}")
 
-        # Process run_id2 if provided
         if run_id2:
             cache_key2 = f"graph_{run_id2}"
-            # Check memory cache first
             cached_graph2 = api_cache.get(cache_key2)
             
             if cached_graph2:
                 print(f"Found graph data in memory cache for {run_id2}")
                 data_points[run_id2] = cached_graph2
             else:
-                # Fetch from external API
                 print(f"Fetching graph data from external API for {run_id2}")
                 graph_data2 = self._fetch_graph_data_for_id(run_id2)
                 if graph_data2:
                     data_points[run_id2] = graph_data2
-                    # Store in memory cache
                     api_cache.put(cache_key2, graph_data2)
                 else:
                     print(f"No graph data found for {run_id2}")
 
-        # Check if we have any data at all
         if not data_points:
             return JsonResponse({'error': 'No graph data found for any of the provided run IDs'}, status=404)
 
-        # Prepare response with data points and missing data messages
         response_data = {'data_points': data_points}
         
-        # Add messages for missing data
         missing_data_messages = []
         if run_id1 and run_id1 not in data_points:
             missing_data_messages.append(f"No graph data available for run ID: {run_id1}")
@@ -314,7 +291,6 @@ class FetchGraphDataView(View):
         if missing_data_messages:
             response_data['missing_data'] = missing_data_messages
 
-        # Validate workload and model compatibility if both run IDs are provided and both have data
         if run_id1 and run_id2 and run_id1 in data_points and run_id2 in data_points:
             compatibility_check = self._check_workload_compatibility(run_id1, run_id2)
             if not compatibility_check['compatible']:
@@ -380,7 +356,6 @@ class FetchGraphDataView(View):
     def _check_workload_compatibility(self, run_id1, run_id2):
         """Check if two run IDs have compatible workload types and models"""
         try:
-            # Get workload types and models for both run IDs
             api_url_template = 'http://grover.rtp.netapp.com/KO/rest/api/Runs/{}?req_fields=workload,model'
             
             response1 = requests.get(api_url_template.format(run_id1), timeout=10)
@@ -395,7 +370,6 @@ class FetchGraphDataView(View):
                 model1 = data1.get('model')
                 model2 = data2.get('model')
                 
-                # First check workload compatibility
                 if workload1 != workload2:
                     return {
                         'compatible': False,
@@ -406,7 +380,6 @@ class FetchGraphDataView(View):
                         'error_type': 'workload',
                         'message': 'Cannot compare runs with different workload types'
                     }
-                # Then check model compatibility
                 elif model1 != model2:
                     return {
                         'compatible': False,
@@ -426,7 +399,6 @@ class FetchGraphDataView(View):
                         'model2': model2
                     }
             else:
-                # If we can't fetch workload info, allow comparison
                 return {
                     'compatible': True,
                     'workload1': 'Unknown',
@@ -436,7 +408,6 @@ class FetchGraphDataView(View):
                 }
         except Exception as e:
             print(f"Error checking workload compatibility: {e}")
-            # If error occurs, allow comparison
             return {
                 'compatible': True,
                 'workload1': 'Unknown',
@@ -455,7 +426,6 @@ class CacheManagementView(View):
     
     def delete(self, request):
         """Clear memory cache"""
-        # Clear memory cache
         api_cache.clear()
         
         return JsonResponse({
@@ -474,20 +444,17 @@ class FetchMultipleRunsView(View):
         if not ids_param:
             return JsonResponse({'error': 'ids parameter is required (comma-separated)'}, status=400)
         
-        # Parse comma-separated IDs and validate
         run_ids = [id.strip() for id in ids_param.split(',') if id.strip()]
         
         if not run_ids:
             return JsonResponse({'error': 'No valid IDs provided'}, status=400)
         
-        # Validate each ID length
         invalid_ids = [id for id in run_ids if len(id) != 9]
         if invalid_ids:
             return JsonResponse({
                 'error': f'All IDs must be exactly 9 characters long. Invalid IDs: {invalid_ids}'
             }, status=400)
         
-        # Limit the number of IDs to prevent abuse
         if len(run_ids) > 50:
             return JsonResponse({'error': 'Maximum 50 IDs allowed per request'}, status=400)
         
@@ -518,14 +485,12 @@ class FetchMultipleRunsView(View):
     
     def _fetch_single_run_data(self, run_id):
         """Fetch data for a single run ID with caching"""
-        # Check memory cache first
         cache_key = f"details_{run_id}"
         cached_data = api_cache.get(cache_key)
         if cached_data:
             print(f"Found details data in memory cache for {run_id}")
             return cached_data
         
-        # Fetch from external API if not in memory cache
         print(f"Fetching details data from external API for {run_id}")
         api_url = f'http://grover.rtp.netapp.com/KO/rest/api/Runs/{run_id}?req_fields=workload,peak_iter,ontap_ver,peak_ops,peak_lat,model'
         
@@ -537,7 +502,6 @@ class FetchMultipleRunsView(View):
             if data.get('workload') == 0:
                 raise Exception(f'ID {run_id} is incorrect or not found')
             
-            # Rename fields to user-friendly names
             renamed_data = {
                 'Workload Type': data.get('workload'),
                 'Peak Iteration': data.get('peak_iter'),
@@ -548,11 +512,9 @@ class FetchMultipleRunsView(View):
             }
             
             print(f"Fetched data for {run_id}: {renamed_data}")
-            # Add perfweb link
             year_month = run_id[:4]
             renamed_data['Perfweb Link'] = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
             
-            # Fetch and merge stats data
             try:
                 stats_data = self._fetch_stats_data(run_id)
                 renamed_data.update(stats_data)
@@ -560,7 +522,6 @@ class FetchMultipleRunsView(View):
                 print(f"Error fetching stats data for {run_id}: {e}")
                 renamed_data['stats_error'] = f"Could not fetch stats data: {str(e)}"
             
-            # Store in memory cache
             api_cache.put(cache_key, renamed_data)
             
             return renamed_data
@@ -653,7 +614,6 @@ class FetchMultipleRunsView(View):
                         if ldma_latency_match:
                             all_ldma_stats.append(float(ldma_latency_match.group(1)))
 
-                # Calculate maximums
                 if all_throughputs:
                     stats_data['Maximum Throughput'] = max(all_throughputs) / (1024 * 1024)
                 
