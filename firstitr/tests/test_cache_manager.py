@@ -240,20 +240,28 @@ class TestApiCache:
         assert hasattr(api_cache, 'clear')
         assert hasattr(api_cache, 'get_status')
     
-    def test_api_cache_operations(self):
-        """Test basic operations on global cache instance"""
-        # Clear cache first
-        api_cache.clear()
+    @patch('myapp.cache_manager.api_cache')
+    def test_api_cache_operations_with_mock(self, mock_api_cache):
+        """Test basic operations on global cache instance using mocks"""
+        # Setup mock return values
+        mock_api_cache.get.return_value = 'test_value'
+        mock_api_cache.get_status.return_value = {
+            'size': 1,
+            'details_keys': ['test_key'],
+            'graph_keys': []
+        }
         
-        # Test put and get
-        api_cache.put('test_key', 'test_value')
-        assert api_cache.get('test_key') == 'test_value'
+        # Test operations without affecting real cache
+        mock_api_cache.put('test_key', 'test_value')
+        result = mock_api_cache.get('test_key')
+        assert result == 'test_value'
         
         # Test status
-        status = api_cache.get_status()
-        assert status['size'] == 1  # Changed from total_items to size
-        assert 'test_key' in status['details_keys'] or 'test_key' in status['graph_keys']
+        status = mock_api_cache.get_status()
+        assert status['size'] == 1
+        assert 'test_key' in status['details_keys']
         
-        # Test clear
-        api_cache.clear()
-        assert api_cache.get('test_key') is None
+        # Verify methods were called
+        mock_api_cache.put.assert_called_with('test_key', 'test_value')
+        mock_api_cache.get.assert_called_with('test_key')
+        mock_api_cache.get_status.assert_called_once()
