@@ -281,3 +281,6 @@ export const useCompatibility = (data1, data2, mode) => {
 
   return { comparisonAllowed, setComparisonAllowed };
 };
+
+// Re-export the useUIState hook
+export { useUIState } from './useUIState';
