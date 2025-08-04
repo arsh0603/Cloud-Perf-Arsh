@@ -63,7 +63,6 @@ firstprj-a/
 
 ### Data Management
 - **Smart Caching**: LRU cache for API responses and graph data
-- **Real-time Status**: Live cache status monitoring
 - **Error Handling**: Comprehensive error reporting and validation
 - **Data Transformation**: Clean data formatting and processing
 
@@ -87,7 +86,6 @@ firstprj-a/
 - Django
 - React
 - Javascript
-- Git
 
 ### Backend Setup (Django)
 
@@ -192,19 +190,6 @@ curl "http://localhost:8000/api/fetch-multiple-runs/?run_ids=250725hbn,250726xyz
 4. **Generate Graphs:** Create interactive latency vs throughput visualizations
 5. **Analyze Results:** Review performance data and compatibility status
 
-### Run ID Format
-- **Format:** 9 characters (e.g., `250725hbn`)
-- **Structure:** YYMMDD + 3-character identifier
-- **Source:** NetApp performance testing systems
-
-## Architecture Highlights
-
-### Modular Design
-- **Backend reduced from 650 to 100 lines** (85% reduction) in main views
-- **Frontend reduced from 926 to 377 lines** (59% reduction) in main component
-- **Service-oriented architecture** with clear separation of concerns
-- **Component-based UI** with reusable React components
-
 ### Performance Optimizations
 - **LRU caching** for API responses and graph data
 - **Smart data fetching** with cache-first strategy
@@ -216,27 +201,6 @@ curl "http://localhost:8000/api/fetch-multiple-runs/?run_ids=250725hbn,250726xyz
 - **Graceful degradation** for missing or incomplete data
 - **User-friendly error messages** with specific failure reasons
 - **Compatibility checking** for workload and model types
-
-## Development
-
-### Project Status
-- ✅ **Fully modularized** frontend and backend
-- ✅ **Service layer architecture** implemented
-- ✅ **Component library** created
-- ✅ **Custom hooks** for state management
-- ✅ **Comprehensive error handling**
-- ✅ **Performance optimizations** applied
-- ✅ **Complete unit test suite** with 86 tests (100% pass rate)
-- ✅ **Test documentation** and guidelines
-
-### Code Quality Metrics
-- **Backend views.py:** 650 → 100 lines (85% reduction)
-- **Frontend App.js:** 926 → 377 lines (59% reduction)
-- **Modular services:** 6 service classes created
-- **Reusable components:** 6 UI components extracted
-- **Custom hooks:** 4 data management hooks
-- **Unit tests:** 86 tests covering all backend components
-- **Test execution:** 3-second runtime for full test suite
 
 ### Testing
 The project includes a comprehensive unit test suite for the Django backend:
@@ -272,57 +236,3 @@ python3 manage.py check
 cd my-react-app
 npm run build
 ```
-
-## Contributing
-
-### Development Guidelines
-1. **Follow modular architecture** - Keep components and services focused
-2. **Use service layer** - Business logic goes in service classes
-3. **Component reusability** - Create reusable UI components
-4. **Error handling** - Implement comprehensive error checking
-5. **Performance first** - Consider caching and optimization
-
-### Contribution Process
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow the modular architecture patterns
-4. Test both frontend and backend
-5. Commit changes (`git commit -m 'Add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Create a Pull Request
-
-### File Structure Guidelines
-- **Backend services:** Add new business logic to appropriate service classes
-- **Frontend components:** Create reusable components in `src/components/`
-- **Utilities:** Add shared functions to `src/utils/helpers.js`
-- **Hooks:** Create custom hooks in `src/hooks/index.js`
-
-## Troubleshooting
-
-### Common Issues
-
-**Backend not starting:**
-```bash
-# Check Django installation
-python3 -c "import django; print(django.get_version())"
-
-# Verify project structure
-cd firstitr && python3 manage.py check
-```
-
-**Frontend build errors:**
-```bash
-# Clear npm cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
-```
-
-**API connection issues:**
-- Ensure both servers are running on correct ports
-- Check network access to NetApp internal systems
-- Verify run ID format (9 characters)
-
-**Cache issues:**
-- Use `DELETE /api/cache-management/` to clear cache
-- Check cache status with `GET /api/cache-status/`
-
