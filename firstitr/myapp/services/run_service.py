@@ -122,7 +122,7 @@ class RunDataService:
         return result
     
     @classmethod
-    def fetch_multiple_runs_data(cls, run_ids: list, max_runs: int = 50) -> Dict[str, Any]:
+    def fetch_multiple_runs_data(cls, run_ids: list, max_runs: int = 5) -> Dict[str, Any]:
         """
         Fetch data for multiple run IDs
         
@@ -148,9 +148,9 @@ class RunDataService:
             try:
                 data = cls.fetch_single_run_data(run_id)
                 if data:
-                    # Add perfweb link
+                    # Add harness log link
                     year_month = run_id[:4]
-                    data['Perfweb Link'] = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
+                    data['Test harness Log'] = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
                     results[run_id] = data
                 else:
                     errors[run_id] = "No data available for this ID"

@@ -20,6 +20,27 @@ export const validation = {
       isValid: errors.length === 0,
       errors
     };
+  },
+
+  validateRunIdsForComparison: (id1, id2) => {
+    const errors = [];
+    
+    // ID1 is required
+    if (!id1 || !validation.isValidRunId(id1)) {
+      errors.push('First ID must be exactly 9 characters long.');
+    }
+    
+    // ID2 is optional, but if provided, must be valid
+    if (id2 && !validation.isValidRunId(id2)) {
+      errors.push('Second ID must be exactly 9 characters long.');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      hasValidId1: id1 && validation.isValidRunId(id1),
+      hasValidId2: id2 && validation.isValidRunId(id2)
+    };
   }
 };
 
@@ -52,6 +73,44 @@ export const dataUtils = {
   safeGet: (obj, key, defaultValue = 'N/A') => {
     const value = obj?.[key];
     return dataUtils.isEmpty(value) ? defaultValue : value;
+  },
+
+  isURL: (value) => {
+    if (typeof value !== 'string') return false;
+    try {
+      new URL(value);
+      return value.startsWith('http://') || value.startsWith('https://');
+    } catch {
+      return false;
+    }
+  },
+
+  renderValue: (value, label = '') => {
+    if (dataUtils.isEmpty(value)) return 'N/A';
+    
+    // Check if the value is a URL
+    if (dataUtils.isURL(value)) {
+      // Create a more user-friendly link text based on the label
+      let linkText = '🔗 View Log';
+      if (label.toLowerCase().includes('harness')) {
+        linkText = '📋 Test Harness Log';
+      } else if (label.toLowerCase().includes('log')) {
+        linkText = '📄 View Log';
+      } else if (label.toLowerCase().includes('report')) {
+        linkText = '📊 View Report';
+      }
+      
+      return {
+        isLink: true,
+        url: value,
+        text: linkText
+      };
+    }
+    
+    return {
+      isLink: false,
+      text: value
+    };
   }
 };
 
@@ -205,6 +264,21 @@ export const chartUtils = {
               `Latency: ${context.raw.y.toFixed(2)} μs`
             ];
           }
+        }
+      },
+      zoom: {
+        zoom: {
+          wheel: {
+            enabled: false,
+          },
+          pinch: {
+            enabled: false
+          },
+          mode: 'xy',
+        },
+        pan: {
+          enabled: false,
+          mode: 'xy',
         }
       }
     },

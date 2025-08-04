@@ -4,7 +4,13 @@ import threading
 import json
 import os
 from typing import Any, Optional, Dict
-from django.conf import settings
+
+try:
+    from django.conf import settings
+    DJANGO_AVAILABLE = True
+except ImportError:
+    DJANGO_AVAILABLE = False
+    settings = None
 
 class LRUCache:
     """
@@ -15,7 +21,17 @@ class LRUCache:
         self.cache = OrderedDict()
         self.access_times = {}
         self.lock = threading.RLock()
-        self.cache_file = os.path.join(settings.BASE_DIR, 'cache_data.json')
+        
+        # Handle Django settings for cache file path
+        try:
+            if DJANGO_AVAILABLE and settings and settings.configured:
+                self.cache_file = os.path.join(settings.BASE_DIR, 'cache_data.json')
+            else:
+                self.cache_file = 'cache_data.json'
+        except Exception:
+            # Fallback for testing or when Django settings aren't properly configured
+            self.cache_file = 'cache_data.json'
+        
         self._load_from_file()
     
     def _load_from_file(self):

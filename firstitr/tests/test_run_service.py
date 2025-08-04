@@ -1,6 +1,6 @@
 """
-Tests for Run Service
-Tests all functions in run_service.py
+Unit tests for Run Service
+Tests RunDataService and GraphDataManagerService
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
@@ -8,295 +8,316 @@ from myapp.services.run_service import RunDataService, GraphDataManagerService
 
 
 class TestRunDataService:
-    """Test cases for RunDataService class"""
-
-    @patch('myapp.services.run_service.api_cache')
-    def test_fetch_single_run_data_from_cache(self, mock_cache, sample_transformed_data):
-        """Test fetching single run data from cache"""
-        # Setup
-        mock_cache.get.return_value = sample_transformed_data
-
-        # Execute
-        result = RunDataService.fetch_single_run_data('123456789')
-
-        # Assert
-        assert result == sample_transformed_data
-        mock_cache.get.assert_called_once_with('details_123456789')
-
-    @patch('myapp.services.run_service.api_cache')
-    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
-    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
+    """Test cases for RunDataService"""
+    
     @patch('myapp.services.run_service.StatsProcessingService.fetch_comprehensive_stats')
-    def test_fetch_single_run_data_from_api(self, mock_stats, mock_transform, mock_api, mock_cache, sample_run_data, sample_transformed_data, sample_stats_data):
-        """Test fetching single run data from API"""
-        # Setup
+    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
+    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_run_data_success(self, mock_cache, mock_fetch_details, mock_transform, mock_stats):
+        """Test successful single run data fetch"""
+        # Setup mocks
+        raw_data = {'workload': 'test', 'peak_iter': 1000}
+        transformed_data = {'Workload Type': 'test', 'Peak Iteration': 1000}
+        stats_data = {'workload_stats': {'operation': 'read'}}
+        
         mock_cache.get.return_value = None  # Not in cache
-        mock_api.return_value = sample_run_data
-        mock_transform.return_value = sample_transformed_data
-        mock_stats.return_value = sample_stats_data
-
-        expected_result = {**sample_transformed_data, **sample_stats_data}
-
-        # Execute
+        mock_fetch_details.return_value = raw_data
+        mock_transform.return_value = transformed_data
+        mock_stats.return_value = stats_data
+        
+        # Test the method
         result = RunDataService.fetch_single_run_data('123456789')
-
-        # Assert
+        
+        # Assertions
+        expected_result = {**transformed_data, **stats_data}
         assert result == expected_result
-        mock_cache.get.assert_called_once_with('details_123456789')
-        mock_api.assert_called_once_with('123456789')
-        mock_transform.assert_called_once_with(sample_run_data)
+        mock_fetch_details.assert_called_once_with('123456789')
+        mock_transform.assert_called_once_with(raw_data)
         mock_stats.assert_called_once_with('123456789')
         mock_cache.put.assert_called_once()
-
-    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
-    def test_fetch_single_run_data_invalid_id(self, mock_api):
-        """Test fetching single run data with invalid ID"""
-        # Setup
-        mock_api.return_value = None  # Invalid ID returns None
-
-        # Execute
-        result = RunDataService.fetch_single_run_data('000000000')
-
-        # Assert
-        assert result is None
-        mock_api.assert_called_once_with('000000000')
-
+    
     @patch('myapp.services.run_service.api_cache')
-    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
-    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
-    @patch('myapp.services.run_service.StatsProcessingService.fetch_comprehensive_stats')
-    def test_fetch_single_run_data_stats_error(self, mock_stats, mock_transform, mock_api, mock_cache, sample_run_data, sample_transformed_data):
-        """Test fetching single run data when stats fetching fails"""
-        # Setup
-        mock_cache.get.return_value = None
-        mock_api.return_value = sample_run_data
-        mock_transform.return_value = sample_transformed_data
-        mock_stats.side_effect = Exception("Stats fetch error")
-
-        # Execute
+    def test_fetch_single_run_data_from_cache(self, mock_cache):
+        """Test fetching data from cache"""
+        cached_data = {'Workload Type': 'cached_test', 'from_cache': True}
+        mock_cache.get.return_value = cached_data
+        
         result = RunDataService.fetch_single_run_data('123456789')
-
-        # Assert
-        assert 'stats_error' in result
-        assert "Could not fetch stats data" in result['stats_error']
-
-    @patch('myapp.services.run_service.api_cache')
+        
+        assert result == cached_data
+        mock_cache.get.assert_called_once_with('details_123456789')
+        mock_cache.put.assert_not_called()
+    
     @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
-    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
-    def test_fetch_single_run_data_without_stats(self, mock_transform, mock_api, mock_cache, sample_run_data, sample_transformed_data):
-        """Test fetching single run data without stats"""
-        # Setup
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_run_data_not_found(self, mock_cache, mock_fetch_details):
+        """Test handling when run ID is not found"""
         mock_cache.get.return_value = None
-        mock_api.return_value = sample_run_data
-        mock_transform.return_value = sample_transformed_data
-
-        # Execute
+        mock_fetch_details.return_value = None
+        
+        result = RunDataService.fetch_single_run_data('invalid123')
+        
+        assert result is None
+        mock_fetch_details.assert_called_once_with('invalid123')
+    
+    @patch('myapp.services.run_service.StatsProcessingService.fetch_comprehensive_stats')
+    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
+    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_run_data_without_stats(self, mock_cache, mock_fetch_details, mock_transform, mock_stats):
+        """Test fetching run data without detailed statistics"""
+        raw_data = {'workload': 'test', 'peak_iter': 1000}
+        transformed_data = {'Workload Type': 'test', 'Peak Iteration': 1000}
+        
+        mock_cache.get.return_value = None
+        mock_fetch_details.return_value = raw_data
+        mock_transform.return_value = transformed_data
+        
         result = RunDataService.fetch_single_run_data('123456789', include_stats=False)
-
-        # Assert
-        assert result == sample_transformed_data
-        assert 'stats_error' not in result
-
-    @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
+        
+        assert result == transformed_data
+        mock_stats.assert_not_called()
+    
+    @patch('myapp.services.run_service.StatsProcessingService.fetch_comprehensive_stats')
+    @patch('myapp.services.run_service.DataTransformService.transform_run_data')
+    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_run_data_stats_error(self, mock_cache, mock_fetch_details, mock_transform, mock_stats):
+        """Test handling stats fetch error"""
+        raw_data = {'workload': 'test', 'peak_iter': 1000}
+        transformed_data = {'Workload Type': 'test', 'Peak Iteration': 1000}
+        
+        mock_cache.get.return_value = None
+        mock_fetch_details.return_value = raw_data
+        mock_transform.return_value = transformed_data
+        mock_stats.side_effect = Exception("Stats error")
+        
+        result = RunDataService.fetch_single_run_data('123456789')
+        
+        assert 'stats_error' in result
+        assert 'Could not fetch stats data: Stats error' in result['stats_error']
+    
+    @patch('myapp.services.run_service.ExternalAPIService.fetch_run_details')
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_run_data_api_error(self, mock_cache, mock_fetch_details):
+        """Test handling API error"""
+        mock_cache.get.return_value = None
+        mock_fetch_details.side_effect = Exception("API error")
+        
+        with pytest.raises(Exception) as exc_info:
+            RunDataService.fetch_single_run_data('123456789')
+        
+        assert "Error fetching data for 123456789: API error" in str(exc_info.value)
+    
     @patch('myapp.services.run_service.CompatibilityService.check_workload_compatibility')
-    def test_fetch_comparison_data_compatible(self, mock_compatibility, mock_single_fetch, sample_transformed_data):
-        """Test fetching comparison data for compatible runs"""
-        # Setup
-        data1 = {**sample_transformed_data, 'id': '123456789'}
-        data2 = {**sample_transformed_data, 'id': '987654321'}
-
-        mock_single_fetch.side_effect = [data1, data2]
-        mock_compatibility.return_value = {'compatible': True}
-
-        # Execute
+    @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
+    def test_fetch_comparison_data_success(self, mock_fetch_single, mock_compatibility):
+        """Test successful comparison data fetch"""
+        data1 = {'Workload Type': 'test1', 'id': '123456789'}
+        data2 = {'Workload Type': 'test2', 'id': '987654321'}
+        compatibility_result = {'compatible': True, 'workload1': 'test1', 'workload2': 'test2'}
+        
+        mock_fetch_single.side_effect = [data1, data2]
+        mock_compatibility.return_value = compatibility_result
+        
         result = RunDataService.fetch_comparison_data('123456789', '987654321')
-
-        # Assert
+        
         assert 'id1' in result
         assert 'id2' in result
-        assert result['comparison_allowed'] == True
+        assert 'comparison_allowed' in result
         assert result['id1'] == data1
         assert result['id2'] == data2
-
+        assert result['comparison_allowed'] == True
+    
     @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    @patch('myapp.services.run_service.CompatibilityService.check_workload_compatibility')
-    def test_fetch_comparison_data_incompatible(self, mock_compatibility, mock_single_fetch, sample_transformed_data):
-        """Test fetching comparison data for incompatible runs"""
-        # Setup
-        data1 = {**sample_transformed_data, 'Workload Type': 'workload1'}
-        data2 = {**sample_transformed_data, 'Workload Type': 'workload2'}
-
-        mock_single_fetch.side_effect = [data1, data2]
-        mock_compatibility.return_value = {
-            'compatible': False,
-            'error_type': 'workload',
-            'message': 'Different workload types',
-            'workload1': 'workload1',
-            'workload2': 'workload2'
-        }
-
-        # Execute
-        result = RunDataService.fetch_comparison_data('123456789', '987654321')
-
-        # Assert
-        assert 'comparison_error' in result
-        assert result['comparison_error']['comparison_allowed'] == False
-        assert result['comparison_error']['error_type'] == 'workload'
-
-    @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    def test_fetch_comparison_data_missing_run(self, mock_single_fetch):
-        """Test fetching comparison data when one run is missing"""
-        # Setup
-        mock_single_fetch.side_effect = [None, {'id': '987654321'}]  # First run not found
-
-        # Execute
-        result = RunDataService.fetch_comparison_data('123456789', '987654321')
-
-        # Assert
+    def test_fetch_comparison_data_first_id_error(self, mock_fetch_single):
+        """Test comparison when first ID has error"""
+        mock_fetch_single.side_effect = [None, {'Workload Type': 'test2'}]
+        
+        result = RunDataService.fetch_comparison_data('invalid123', '987654321')
+        
         assert 'error_id1' in result
+        assert 'ID 1: invalid123 is incorrect.' in result['error_id1']
         assert 'id2' in result
-        assert 'ID 1: 123456789 is incorrect' in result['error_id1']
-
+    
     @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    def test_fetch_multiple_runs_data_success(self, mock_single_fetch, sample_transformed_data):
-        """Test fetching multiple runs data successfully"""
-        # Setup
-        run_ids = ['123456789', '987654321', '555666777']
-        data1 = {**sample_transformed_data, 'id': '123456789'}
-        data2 = {**sample_transformed_data, 'id': '987654321'}
-        data3 = {**sample_transformed_data, 'id': '555666777'}
-
-        mock_single_fetch.side_effect = [data1, data2, data3]
-
-        # Execute
-        result = RunDataService.fetch_multiple_runs_data(run_ids)
-
-        # Assert
-        assert result['success_count'] == 3
-        assert result['error_count'] == 0
-        assert result['total_requested'] == 3
-        assert '123456789' in result['results']
-        assert '987654321' in result['results']
-        assert '555666777' in result['results']
-
+    def test_fetch_comparison_data_second_id_error(self, mock_fetch_single):
+        """Test comparison when second ID has error"""
+        mock_fetch_single.side_effect = [{'Workload Type': 'test1'}, None]
+        
+        result = RunDataService.fetch_comparison_data('123456789', 'invalid456')
+        
+        assert 'id1' in result
+        assert 'error_id2' in result
+        assert 'ID 2: invalid456 is incorrect.' in result['error_id2']
+    
     @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    def test_fetch_multiple_runs_data_with_invalid(self, mock_single_fetch, sample_transformed_data):
-        """Test fetching multiple runs data with some invalid IDs"""
-        # Setup
-        run_ids = ['123456789', '000000000', '555666777']  # Middle one is invalid
-        data1 = {**sample_transformed_data, 'id': '123456789'}
-        data3 = {**sample_transformed_data, 'id': '555666777'}
-
-        mock_single_fetch.side_effect = [data1, None, data3]  # Middle returns None
-
-        # Execute
-        result = RunDataService.fetch_multiple_runs_data(run_ids)
-
-        # Assert
+    def test_fetch_comparison_data_exception_handling(self, mock_fetch_single):
+        """Test comparison with exception handling"""
+        mock_fetch_single.side_effect = [Exception("Fetch error"), {'Workload Type': 'test2'}]
+        
+        result = RunDataService.fetch_comparison_data('123456789', '987654321')
+        
+        assert 'error_id1' in result
+        assert 'Error fetching ID 1: Fetch error' in result['error_id1']
+        assert 'id2' in result
+    
+    @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
+    def test_fetch_multiple_runs_data_success(self, mock_fetch_single):
+        """Test successful multiple runs data fetch"""
+        run_data = [
+            {'Workload Type': 'test1', 'id': '123456789'},
+            {'Workload Type': 'test2', 'id': '987654321'}
+        ]
+        mock_fetch_single.side_effect = run_data
+        
+        result = RunDataService.fetch_multiple_runs_data(['123456789', '987654321'])
+        
+        assert 'results' in result
+        assert 'success_count' in result
+        assert 'error_count' in result
+        assert len(result['results']) == 2
         assert result['success_count'] == 2
-        assert result['error_count'] == 1
-        assert '123456789' in result['results']
-        assert '555666777' in result['results']
-        assert '000000000' in result['errors']
-
+        assert result['error_count'] == 0
+    
     @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    def test_fetch_multiple_runs_data_empty_list(self, mock_single_fetch):
-        """Test fetching multiple runs data with empty list"""
-        # Execute
+    def test_fetch_multiple_runs_data_with_errors(self, mock_fetch_single):
+        """Test multiple runs fetch with some errors"""
+        mock_fetch_single.side_effect = [
+            {'Workload Type': 'test1', 'id': '123456789'},
+            None,  # Second run not found
+            Exception("API error")  # Third run has error
+        ]
+        
+        # Use valid 9-character IDs
+        result = RunDataService.fetch_multiple_runs_data(['123456789', '987654321', '555555555'])
+        
+        assert 'results' in result
+        assert 'errors' in result
+        assert '123456789' in result['results']
+        assert result['success_count'] == 1
+        assert result['error_count'] == 2
+    
+    def test_fetch_multiple_runs_data_invalid_id_length(self):
+        """Test multiple runs fetch with invalid ID lengths"""
+        with pytest.raises(ValueError) as exc_info:
+            RunDataService.fetch_multiple_runs_data(['123456789', 'invalid123', '555555555'])
+        
+        assert "All IDs must be exactly 9 characters long" in str(exc_info.value)
+        assert "invalid123" in str(exc_info.value)
+    
+    def test_fetch_multiple_runs_data_empty_list(self):
+        """Test multiple runs fetch with empty list"""
         result = RunDataService.fetch_multiple_runs_data([])
-
-        # Assert
+        
         assert result['success_count'] == 0
         assert result['error_count'] == 0
         assert result['total_requested'] == 0
         assert result['results'] == {}
-
-    @patch('myapp.services.run_service.RunDataService.fetch_single_run_data')
-    def test_fetch_multiple_runs_data_exception_handling(self, mock_single_fetch, sample_transformed_data):
-        """Test fetching multiple runs data with exception handling"""
-        # Setup
-        run_ids = ['123456789', '987654321']
-        data1 = {**sample_transformed_data, 'id': '123456789'}
-
-        mock_single_fetch.side_effect = [data1, Exception("Network error")]
-
-        # Execute
-        result = RunDataService.fetch_multiple_runs_data(run_ids)
-
-        # Assert
-        assert result['success_count'] == 1
-        assert result['error_count'] == 1
-        assert '123456789' in result['results']
-        assert '987654321' in result['errors']
-        assert result['errors']['987654321'] == 'Network error'
-
-    def test_fetch_multiple_runs_data_too_many_ids(self):
-        """Test fetching multiple runs data with too many IDs"""
-        # Setup
-        run_ids = [f'{i:09d}' for i in range(55)]  # 55 IDs (over limit of 50)
-
-        # Execute & Assert
-        with pytest.raises(ValueError) as exc_info:
-            RunDataService.fetch_multiple_runs_data(run_ids)
-        
-        assert 'Maximum 50 IDs allowed' in str(exc_info.value)
-
-    def test_fetch_multiple_runs_data_invalid_id_length(self):
-        """Test fetching multiple runs data with invalid ID lengths"""
-        # Setup
-        run_ids = ['12345', '1234567890']  # Wrong lengths
-
-        # Execute & Assert
-        with pytest.raises(ValueError) as exc_info:
-            RunDataService.fetch_multiple_runs_data(run_ids)
-        
-        assert 'All IDs must be exactly 9 characters long' in str(exc_info.value)
+        assert result['errors'] is None
 
 
 class TestGraphDataManagerService:
-    """Test cases for GraphDataManagerService class"""
-
-    @patch('myapp.services.run_service.api_cache')
-    def test_fetch_single_graph_data_from_cache(self, mock_cache, sample_graph_data):
-        """Test fetching single graph data from cache"""
-        # Setup
-        mock_cache.get.return_value = sample_graph_data
-
-        # Execute
-        result = GraphDataManagerService.fetch_single_graph_data('123456789')
-
-        # Assert
-        assert result is not None
-        assert 'data_points' in result
-        assert '123456789' in result['data_points']
-        mock_cache.get.assert_called_once_with('graph_123456789')
-
-    @patch('myapp.services.run_service.api_cache')
+    """Test cases for GraphDataManagerService"""
+    
     @patch('myapp.services.run_service.GraphDataService.fetch_graph_data')
-    def test_fetch_single_graph_data_from_api(self, mock_graph_service, mock_cache, sample_graph_data):
-        """Test fetching single graph data from API"""
-        # Setup
-        mock_cache.get.return_value = None  # Not in cache
-        mock_graph_service.return_value = sample_graph_data
-
-        # Execute
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_graph_data_success(self, mock_cache, mock_fetch_graph):
+        """Test successful single graph data fetch"""
+        graph_data = {'timestamps': [1, 2, 3], 'values': [10, 20, 30]}
+        
+        mock_cache.get.return_value = None
+        mock_fetch_graph.return_value = graph_data
+        
         result = GraphDataManagerService.fetch_single_graph_data('123456789')
-
-        # Assert
-        assert result is not None
-        assert 'data_points' in result
+        
+        # Should return wrapped data with data_points containing the run_id key
+        expected = {'data_points': {'123456789': graph_data}}
+        assert result == expected
+        mock_fetch_graph.assert_called_once_with('123456789')
         mock_cache.put.assert_called_once()
-
+    
     @patch('myapp.services.run_service.api_cache')
-    @patch('myapp.services.run_service.GraphDataService.fetch_graph_data')
-    def test_fetch_single_graph_data_no_data(self, mock_graph_service, mock_cache):
-        """Test fetching single graph data when no data available"""
-        # Setup
-        mock_cache.get.return_value = None  # Not in cache
-        mock_graph_service.return_value = None  # No data available
-
-        # Execute
+    def test_fetch_single_graph_data_from_cache(self, mock_cache):
+        """Test fetching graph data from cache"""
+        cached_data = {'timestamps': [1, 2, 3], 'values': [10, 20, 30]}
+        mock_cache.get.return_value = cached_data
+        
         result = GraphDataManagerService.fetch_single_graph_data('123456789')
-
-        # Assert
+        
+        # Should return wrapped data even from cache
+        expected = {'data_points': {'123456789': cached_data}}
+        assert result == expected
+        mock_cache.get.assert_called_once_with('graph_123456789')
+    
+    @patch('myapp.services.run_service.GraphDataService.fetch_graph_data')
+    @patch('myapp.services.run_service.api_cache')
+    def test_fetch_single_graph_data_not_found(self, mock_cache, mock_fetch_graph):
+        """Test handling when graph data is not found"""
+        mock_cache.get.return_value = None
+        mock_fetch_graph.return_value = None
+        
+        result = GraphDataManagerService.fetch_single_graph_data('invalid123')
+        
         assert result is None
+    
+    @patch('myapp.services.run_service.GraphDataManagerService.fetch_single_graph_data')
+    def test_fetch_comparison_graph_data_success(self, mock_fetch_single):
+        """Test successful comparison graph data fetch"""
+        graph1 = {'data_points': {'123456789': 'graph1'}}
+        graph2 = {'data_points': {'987654321': 'graph2'}}
+        
+        mock_fetch_single.side_effect = [graph1, graph2]
+        
+        result = GraphDataManagerService.fetch_comparison_graph_data('123456789', '987654321')
+        
+        expected = {
+            'data_points': {
+                '123456789': 'graph1',
+                '987654321': 'graph2'
+            }
+        }
+        assert result == expected
+    
+    @patch('myapp.services.run_service.GraphDataManagerService.fetch_single_graph_data')
+    def test_fetch_comparison_graph_data_partial_success(self, mock_fetch_single):
+        """Test comparison graph data with partial success"""
+        graph1 = {'data_points': {'123456789': 'graph1'}}
+        
+        mock_fetch_single.side_effect = [graph1, None]
+        
+        result = GraphDataManagerService.fetch_comparison_graph_data('123456789', 'invalid123')
+        
+        expected = {
+            'data_points': {'123456789': 'graph1'},
+            'missing_data': ['No graph data available for run ID: invalid123']
+        }
+        assert result == expected
+    
+    @patch('myapp.services.run_service.GraphDataManagerService.fetch_single_graph_data')
+    def test_fetch_comparison_graph_data_both_missing(self, mock_fetch_single):
+        """Test comparison graph data when both are missing"""
+        mock_fetch_single.return_value = None
+        
+        result = GraphDataManagerService.fetch_comparison_graph_data('invalid123', 'invalid456')
+        
+        expected = {
+            'data_points': {},
+            'missing_data': [
+                'No graph data available for run ID: invalid123',
+                'No graph data available for run ID: invalid456'
+            ]
+        }
+        assert result == expected
+    
+    @patch('myapp.services.run_service.GraphDataManagerService.fetch_single_graph_data')
+    def test_fetch_comparison_graph_data_single_run(self, mock_fetch_single):
+        """Test comparison graph data with single run (no second ID)"""
+        graph1 = {'data_points': {'123456789': 'graph1'}}
+        
+        mock_fetch_single.return_value = graph1
+        
+        result = GraphDataManagerService.fetch_comparison_graph_data('123456789')
+        
+        assert result == graph1

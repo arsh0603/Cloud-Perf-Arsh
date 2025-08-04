@@ -4,7 +4,7 @@ Handles communication with external NetApp performance systems
 """
 import requests
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union, Type
 
 
 class ExternalAPIService:
@@ -131,7 +131,7 @@ class DataTransformService:
         }
     
     @classmethod
-    def extract_numeric_value(cls, text: str, pattern: str, value_type=int):
+    def extract_numeric_value(cls, text: str, pattern: str, value_type: Type[Union[int, float]] = int):
         """
         Extract numeric value from text using regex pattern
         

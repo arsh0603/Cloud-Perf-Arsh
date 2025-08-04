@@ -2,7 +2,8 @@ import React from 'react';
 
 const ModeSelector = ({ mode, onModeChange }) => {
   return (
-    <div className="dashboard-card">
+    //   <div className='inner-card'>
+      <div className="dashboard-card">
       <h3 className="card-title">Analysis Mode</h3>
       <div className="mode-toggle">
         <button 
@@ -18,6 +19,7 @@ const ModeSelector = ({ mode, onModeChange }) => {
           Compare Runs
         </button>
       </div>
+    {/* </div> */}
     </div>
   );
 };

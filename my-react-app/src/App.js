@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { Line } from 'react-chartjs-2';
 import {
@@ -15,7 +15,6 @@ import {
   Header, 
   ModeSelector, 
   RunIdInput, 
-  ErrorDisplay, 
   LoadingIndicator 
 } from './components';
 import { 
@@ -24,7 +23,7 @@ import {
   useCacheStatus, 
   useCompatibility 
 } from './hooks';
-import { validation, urlUtils, chartUtils } from './utils/helpers';
+import { validation, urlUtils, chartUtils, dataUtils } from './utils/helpers';
 
 // Register Chart.js components
 ChartJS.register(
@@ -85,23 +84,38 @@ function App() {
   };
 
   const handleRunSubmit = async (runId1, runId2 = null) => {
-    // Clear all errors when starting a new operation
-    setInputError('');
-    runDataHook.setError(null);
-    graphDataHook.setGraphError(null);
-    
     // Validate IDs based on mode
     if (runId2) {
-      // Comparison mode - validate both IDs
-      const validationResult = validation.validateRunIds(runId1, runId2);
-      if (!validationResult.isValid) {
-        setInputError(validationResult.errors[0]);
+      // Clear all errors when starting a comparison operation
+      setInputError('');
+      runDataHook.setError(null);
+      graphDataHook.setGraphError(null);
+      
+      // Comparison mode - validate both IDs using new logic
+      const validationResult = validation.validateRunIdsForComparison(runId1, runId2);
+      if (!validationResult.hasValidId1) {
+        setInputError('First ID must be exactly 9 characters long.');
         return;
       }
+      // Show warning if ID2 is invalid but continue with ID1
+      if (runId2 && !validationResult.hasValidId2) {
+        setInputError('Second ID is invalid. Proceeding with first ID only.');
+      }
+      
       await runDataHook.fetchComparisonRuns(runId1, runId2);
       setSubmittedId1(runId1);
-      setSubmittedId2(runId2);
+      // Only set submittedId2 if runId2 is valid
+      if (runId2 && validation.isValidRunId(runId2)) {
+        setSubmittedId2(runId2);
+      } else {
+        setSubmittedId2('');
+      }
     } else {
+      // Clear all errors when loading individual IDs (both single and compare mode)
+      setInputError('');
+      runDataHook.setError(null);
+      graphDataHook.setGraphError(null);
+      
       // Single mode - validate single ID
       if (!validation.isValidRunId(runId1)) {
         setInputError('ID must be exactly 9 characters long.');
@@ -109,6 +123,12 @@ function App() {
       }
       // Determine if this is for ID2 in comparison mode
       const isSecondId = mode === 'compare' && runId1 === id2;
+      
+      // In compare mode, when loading individual IDs, clear the compatibility status temporarily
+      // by resetting the compatibility hook state
+      if (mode === 'compare') {
+        compatibilityHook.setComparisonAllowed(undefined);
+      }
       
       await runDataHook.fetchSingleRun(runId1, isSecondId);
       if (mode === 'single') {
@@ -132,9 +152,9 @@ function App() {
     
     // For individual graphs, only validate the single ID
     if (runId2) {
-      // Comparison mode - validate both IDs
-      const validationResult = validation.validateRunIds(runId1, runId2);
-      if (!validationResult.isValid) {
+      // Comparison mode - use new validation logic
+      const validationResult = validation.validateRunIdsForComparison(runId1, runId2);
+      if (!validationResult.hasValidId1) {
         return;
       }
       
@@ -161,97 +181,89 @@ function App() {
       <div className="dashboard-layout">
         {/* Top Panel - Controls (Horizontal) */}
         <div className="top-panel">
-          <div className="controls-row">
-            <ModeSelector 
-              mode={mode} 
-              onModeChange={handleModeChange} 
-            />
-            
-            <RunIdInput
-              mode={mode}
-              id1={id1}
-              id2={id2}
-              onId1Change={(e) => handleIdChange(e.target.value, false)}
-              onId2Change={(e) => handleIdChange(e.target.value, true)}
-              onSubmit={handleRunSubmit}
-              isLoading1={runDataHook.isLoading1}
-              isLoading2={runDataHook.isLoading2}
-              inputError={inputError}
-            />
-          </div>
+          <div className="dashboard-card">
+            <div className="controls-row horizontal-flex">
+              <ModeSelector 
+                mode={mode} 
+                onModeChange={handleModeChange} 
+              />
+              
+              <RunIdInput
+                mode={mode}
+                id1={id1}
+                id2={id2}
+                onId1Change={(e) => handleIdChange(e.target.value, false)}
+                onId2Change={(e) => handleIdChange(e.target.value, true)}
+                onSubmit={handleRunSubmit}
+                isLoading1={runDataHook.isLoading1}
+                isLoading2={runDataHook.isLoading2}
+                inputError={inputError}
+              />
 
-          {(runDataHook.data1 || runDataHook.data2) && (
-            <div className="graph-controls">
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={showThroughputInMB}
-                  onChange={(e) => setShowThroughputInMB(e.target.checked)}
-                />
-                <span className="input-label">Show throughput in MB/s</span>
-              </div>
-              
-              {/* {mode === 'compare' && !compatibilityHook.comparisonAllowed && (
-                <div className="warning-message compact">
-                  ⚠️ <strong>Compatibility Issue:</strong> Individual graphs available, comparison disabled.
-                </div>
-              )} */}
-              
-              <div className="btn-group horizontal-buttons">
-                {mode === 'single' ? (
-                  <button 
-                    type="button" 
-                    className="btn btn-primary compact"
-                    onClick={() => handleGraphSubmit(id1)}
-                    disabled={graphDataHook.isLoadingGraph1}
-                  >
-                    {graphDataHook.isLoadingGraph1 ? (
-                      <>
-                        <span className="loading-spinner"></span>
-                        Loading...
-                      </>
+              {(runDataHook.data1 || runDataHook.data2) && (
+                <div className='dashboard-card' style={{ justifyContent: 'center' }}>
+                <div className="graph-controls horizontal" style={{ flexDirection: 'column' }}>
+                  <div className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={showThroughputInMB}
+                      onChange={(e) => setShowThroughputInMB(e.target.checked)}
+                    />
+                    <span className="input-label">Show throughput in MB/s</span>
+                  </div>
+                  
+                  <div className="btn-group horizontal-buttons">
+                    {mode === 'single' ? (
+                      <button 
+                        type="button" 
+                        className="btn btn-primary compact"
+                        onClick={() => handleGraphSubmit(id1)}
+                        disabled={graphDataHook.isLoadingGraph1}
+                      >
+                        {graphDataHook.isLoadingGraph1 ? (
+                          <>
+                            <span className="loading-spinner"></span>
+                            Loading...
+                          </>
+                        ) : (
+                          '📊 Generate Graph'
+                        )}
+                      </button>
                     ) : (
-                      '📊 Generate Graph'
+                      <>
+                        <button 
+                          type="button" 
+                          className="btn btn-primary compact"
+                          onClick={() => handleGraphSubmit(id1)}
+                          disabled={graphDataHook.isLoadingGraph1}
+                        >
+                          {graphDataHook.isLoadingGraph1 ? 'Loading...' : '📊 Graph ID1'}
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-primary compact"
+                          onClick={() => handleGraphSubmit(id2)}
+                          disabled={graphDataHook.isLoadingGraph2}
+                        >
+                          {graphDataHook.isLoadingGraph2 ? 'Loading...' : '📊 Graph ID2'}
+                        </button>
+                        <button 
+                          type="button" 
+                          className={`btn compact ${!compatibilityHook.comparisonAllowed ? 'btn-disabled' : 'btn-secondary'}`}
+                          onClick={() => handleGraphSubmit(id1, id2)}
+                          disabled={(graphDataHook.isLoadingGraph1 || graphDataHook.isLoadingGraph2) || !compatibilityHook.comparisonAllowed}
+                          title={!compatibilityHook.comparisonAllowed ? `Disabled: Different ${runDataHook.error && runDataHook.error.includes('model types') ? 'model types' : 'workload types'}` : ''}
+                        >
+                          {(graphDataHook.isLoadingGraph1 || graphDataHook.isLoadingGraph2) ? 'Loading...' : (!compatibilityHook.comparisonAllowed ? '🚫 Compare' : '📊 Compare')}
+                        </button>
+                      </>
                     )}
-                  </button>
-                ) : (
-                  <>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary compact"
-                      onClick={() => handleGraphSubmit(id1)}
-                      disabled={graphDataHook.isLoadingGraph1}
-                    >
-                      {graphDataHook.isLoadingGraph1 ? 'Loading...' : '📊 Graph ID1'}
-                    </button>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary compact"
-                      onClick={() => handleGraphSubmit(id2)}
-                      disabled={graphDataHook.isLoadingGraph2}
-                    >
-                      {graphDataHook.isLoadingGraph2 ? 'Loading...' : '📊 Graph ID2'}
-                    </button>
-                    <button 
-                      type="button" 
-                      className={`btn compact ${!compatibilityHook.comparisonAllowed ? 'btn-disabled' : 'btn-secondary'}`}
-                      onClick={() => handleGraphSubmit(id1, id2)}
-                      disabled={graphDataHook.isLoadingGraph || !compatibilityHook.comparisonAllowed}
-                      title={!compatibilityHook.comparisonAllowed ? `Disabled: Different ${runDataHook.error && runDataHook.error.includes('model types') ? 'model types' : 'workload types'}` : ''}
-                    >
-                      {graphDataHook.isLoadingGraph ? 'Loading...' : (!compatibilityHook.comparisonAllowed ? '🚫 Compare' : '📊 Compare')}
-                    </button>
-                  </>
-                )}
-              </div>
+                  </div>
+                </div>
+                </div>
+              )}
             </div>
-          )}
-
-          <ErrorDisplay 
-            inputError={inputError}
-            error={runDataHook.error}
-            graphError={graphDataHook.graphError}
-          />
+          </div>
         </div>
 
         {/* Bottom Panel - Data and Charts */}
@@ -265,30 +277,47 @@ function App() {
               <div className="dashboard-card">
                 <h3 className="card-title">Performance Data</h3>
                 
-                {mode === 'compare' && runDataHook.data1 && runDataHook.data2 && (
-                  <div className={`compatibility-status compact ${!compatibilityHook.comparisonAllowed ? 'incompatible' : 'compatible'}`}>
-                    {!compatibilityHook.comparisonAllowed ? (
+                {mode === 'compare' && runDataHook.data1 && !runDataHook.isLoading1 && !runDataHook.isLoading2 && (
+                  <div className={`compatibility-status compact ${
+                    runDataHook.data1 && runDataHook.data2 
+                      ? (!compatibilityHook.comparisonAllowed ? 'incompatible' : 'compatible')
+                      : 'neutral'
+                  }`}>
+                    {runDataHook.data1 && runDataHook.data2 ? (
+                      // Both data available - show compatibility
+                      !compatibilityHook.comparisonAllowed ? (
+                        <>
+                          {runDataHook.error && runDataHook.error.includes('model types') ? (
+                            <>
+                              ⚠️ <strong>Model Incompatibility:</strong> Different model types 
+                              ({runDataHook.data1['Model']} vs {runDataHook.data2['Model']}).
+                            </>
+                          ) : (
+                            <>
+                              ⚠️ <strong>Workload Incompatibility:</strong> Different workload types 
+                              ({runDataHook.data1['Workload Type']} vs {runDataHook.data2['Workload Type']}).
+                            </>
+                          )}
+                        </>
+                      ) : compatibilityHook.comparisonAllowed === true ? (
+                        <>
+                          ✅ <strong>Compatible:</strong> {runDataHook.data1['Workload Type']} / {runDataHook.data1['Model']}
+                        </>
+                      ) : (
+                        <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                          ⏳ Checking compatibility...
+                        </div>
+                      )
+                    ) : (
+                      // Only ID1 data available
                       <>
-                        {runDataHook.error && runDataHook.error.includes('model types') ? (
-                          <>
-                            ⚠️ <strong>Model Incompatibility:</strong> Different model types 
-                            ({runDataHook.data1['Model']} vs {runDataHook.data2['Model']}).
-                          </>
-                        ) : (
-                          <>
-                            ⚠️ <strong>Workload Incompatibility:</strong> Different workload types 
-                            ({runDataHook.data1['Workload Type']} vs {runDataHook.data2['Workload Type']}).
-                          </>
+                        📋 <strong>ID1 Data Loaded:</strong> {runDataHook.data1['Workload Type']} / {runDataHook.data1['Model']}
+                        {submittedId2 && (
+                          <span style={{ color: '#9ca3af', marginLeft: '10px' }}>
+                            (Waiting for ID2...)
+                          </span>
                         )}
                       </>
-                    ) : compatibilityHook.comparisonAllowed === true ? (
-                      <>
-                        ✅ <strong>Compatible:</strong> {runDataHook.data1['Workload Type']} / {runDataHook.data1['Model']}
-                      </>
-                    ) : (
-                      <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                        ⏳ Checking compatibility...
-                      </div>
                     )}
                   </div>
                 )}
@@ -329,27 +358,72 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {runDataHook.data1 && Object.keys(runDataHook.data1).map((key) => (
-                        <tr key={key}>
-                          <td><strong>{key}</strong></td>
-                          <td>
-                            {runDataHook.isLoading1 ? (
-                              'Loading...'
-                            ) : (
-                              runDataHook.data1[key] !== null && runDataHook.data1[key] !== undefined && runDataHook.data1[key] !== '' ? runDataHook.data1[key] : 'N/A'
-                            )}
-                          </td>
-                          {mode === 'compare' && (
+                      {runDataHook.data1 && Object.keys(runDataHook.data1).map((key) => {
+                        const value1 = runDataHook.data1[key];
+                        const value2 = runDataHook.data2?.[key];
+                        const renderedValue1 = dataUtils.renderValue(value1, key);
+                        const renderedValue2 = dataUtils.renderValue(value2, key);
+                        
+                        return (
+                          <tr key={key}>
+                            <td><strong>{key}</strong></td>
                             <td>
-                              {runDataHook.isLoading2 ? (
+                              {runDataHook.isLoading1 ? (
                                 'Loading...'
                               ) : (
-                                runDataHook.data2 && runDataHook.data2[key] !== null && runDataHook.data2[key] !== undefined && runDataHook.data2[key] !== '' ? runDataHook.data2[key] : 'N/A'
+                                renderedValue1.isLink ? (
+                                  <a 
+                                    href={renderedValue1.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="data-link"
+                                    style={{ 
+                                      color: '#2563eb', 
+                                      textDecoration: 'none',
+                                      fontSize: '0.875rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    {renderedValue1.text}
+                                  </a>
+                                ) : (
+                                  renderedValue1.text
+                                )
                               )}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            {mode === 'compare' && (
+                              <td>
+                                {runDataHook.isLoading2 ? (
+                                  'Loading...'
+                                ) : (
+                                  renderedValue2.isLink ? (
+                                    <a 
+                                      href={renderedValue2.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="data-link"
+                                      style={{ 
+                                        color: '#2563eb', 
+                                        textDecoration: 'none',
+                                        fontSize: '0.875rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      {renderedValue2.text}
+                                    </a>
+                                  ) : (
+                                    renderedValue2.text
+                                  )
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -362,11 +436,11 @@ function App() {
               <div className="dashboard-card">
                 <h3 className="card-title">📈 Performance Chart</h3>
                 
-                {mode === 'compare' && graphDataHook.graphData1 && graphDataHook.graphData2 && !compatibilityHook.comparisonAllowed && runDataHook.data1 && runDataHook.data2 && (
+                 {mode === 'compare' && graphDataHook.graphData1 && graphDataHook.graphData2 && !compatibilityHook.comparisonAllowed && runDataHook.data1 && runDataHook.data2 && !runDataHook.isLoading1 && !runDataHook.isLoading2 && (
                   <div className="warning-message compact">
                     ⚠️ Different {runDataHook.error && runDataHook.error.includes('model types') ? 'model types' : 'workload types'} - comparison not valid.
                   </div>
-                )}
+                )} 
                 
                 <div className="chart-container">
                   <Line 
@@ -383,7 +457,7 @@ function App() {
       </div>
 
       <LoadingIndicator 
-        isLoading={graphDataHook.isLoadingGraph1 || graphDataHook.isLoadingGraph2 || graphDataHook.isLoadingGraph}
+        isLoading={graphDataHook.isLoadingGraph1 || graphDataHook.isLoadingGraph2}
         message="Processing performance data..."
         subMessage="Analyzing run data..."
       />

@@ -92,8 +92,8 @@ class FetchMultipleRunsView(View):
         try:
             run_ids_list = [rid.strip() for rid in run_ids.split(',') if rid.strip()]
             
-            if len(run_ids_list) > 50:
-                return JsonResponse({'error': 'Maximum 50 run IDs allowed'}, status=400)
+            if len(run_ids_list) > 5:
+                return JsonResponse({'error': 'Maximum 5 run IDs allowed'}, status=400)
             
             result = RunDataService.fetch_multiple_runs_data(run_ids_list)
             return JsonResponse(result, safe=False)

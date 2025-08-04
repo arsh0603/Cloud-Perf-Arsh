@@ -24,9 +24,7 @@ export const useRunData = () => {
     try {
       const result = await apiService.fetchSingleDetails(id);
       setData(result);
-      if (!isSecondId) {
-        setData2(null); // Clear data2 only when loading ID1
-      }
+      // Don't clear other data in compare mode - only clear when explicitly switching modes
     } catch (error) {
       console.error('Error fetching run data:', error);
       setError(error.message);
@@ -37,60 +35,61 @@ export const useRunData = () => {
   }, []);
 
   const fetchComparisonRuns = useCallback(async (id1, id2) => {
-    const validationResult = validation.validateRunIds(id1, id2);
-    if (!validationResult.isValid) {
-      setError(validationResult.errors[0]);
+    const validationResult = validation.validateRunIdsForComparison(id1, id2);
+    if (!validationResult.hasValidId1) {
+      setError('First ID must be exactly 9 characters long.');
       return;
     }
 
-    setIsLoading1(true);
-    setIsLoading2(true);
+    // Clear previous data and errors
+    setData1(null);
+    setData2(null);
     setError(null);
 
+    // Fetch ID1 and ID2 separately for instant cache rendering
+    const promises = [];
+    
+    // Always fetch ID1
+    setIsLoading1(true);
+    promises.push(
+      apiService.fetchSingleDetails(id1)
+        .then(result => {
+          setData1(result);
+          setIsLoading1(false);
+        })
+        .catch(error => {
+          console.error('Error fetching ID1:', error);
+          setError(`ID1 Error: ${error.message}`);
+          setData1(null);
+          setIsLoading1(false);
+        })
+    );
+
+    // Fetch ID2 if valid
+    if (validationResult.hasValidId2) {
+      setIsLoading2(true);
+      promises.push(
+        apiService.fetchSingleDetails(id2)
+          .then(result => {
+            setData2(result);
+            setIsLoading2(false);
+          })
+          .catch(error => {
+            console.error('Error fetching ID2:', error);
+            setError(prevError => prevError ? `${prevError}; ID2 Error: ${error.message}` : `ID2 Error: ${error.message}`);
+            setData2(null);
+            setIsLoading2(false);
+          })
+      );
+    }
+
+    // Wait for all promises to complete and return compatibility status
     try {
-      const result = await apiService.fetchComparisonDetails(id1, id2);
-
-      if (result.id1) {
-        setData1(result.id1);
-      }
-      if (result.id2) {
-        setData2(result.id2);
-      }
-
-      // Handle errors for individual IDs
-      if (result.error_id1) {
-        setError(result.error_id1);
-      }
-      if (result.error_id2) {
-        setError(result.error_id2);
-      }
-
-      // Handle comparison errors
-      if (result.comparison_error) {
-        const errorMsg = compatibilityUtils.formatCompatibilityError({
-          compatible: false,
-          errorType: result.comparison_error.error_type,
-          details: {
-            workload1: result.comparison_error.workload_id1,
-            workload2: result.comparison_error.workload_id2,
-            model1: result.comparison_error.model_id1,
-            model2: result.comparison_error.model_id2
-          }
-        });
-        setError(errorMsg);
-        return { comparisonAllowed: false };
-      }
-
+      await Promise.allSettled(promises);
       return { comparisonAllowed: true };
     } catch (error) {
-      console.error('Error fetching comparison data:', error);
-      setError(error.message);
-      setData1(null);
-      setData2(null);
+      console.error('Error in comparison fetch:', error);
       return { comparisonAllowed: false };
-    } finally {
-      setIsLoading1(false);
-      setIsLoading2(false);
     }
   }, []);
 
@@ -119,7 +118,6 @@ export const useGraphData = () => {
   const [graphData2, setGraphData2] = useState(null);
   const [isLoadingGraph1, setIsLoadingGraph1] = useState(false);
   const [isLoadingGraph2, setIsLoadingGraph2] = useState(false);
-  const [isLoadingGraph, setIsLoadingGraph] = useState(false);
   const [graphError, setGraphError] = useState(null);
 
   const fetchGraphData = useCallback(async (runId, isSecondId = false) => {
@@ -158,43 +156,61 @@ export const useGraphData = () => {
   }, []);
 
   const fetchGraphDataComparison = useCallback(async (id1, id2) => {
-    const validationResult = validation.validateRunIds(id1, id2);
-    if (!validationResult.isValid) {
-      setGraphError(validationResult.errors[0]);
+    const validationResult = validation.validateRunIdsForComparison(id1, id2);
+    if (!validationResult.hasValidId1) {
+      setGraphError('First ID must be exactly 9 characters long.');
       return;
     }
 
-    setIsLoadingGraph(true);
+    // Clear previous graph data
+    setGraphData1(null);
+    setGraphData2(null);
     setGraphError(null);
 
+    // Fetch graph data separately for instant cache rendering
+    const promises = [];
+    
+    // Always fetch ID1 graph
+    setIsLoadingGraph1(true);
+    promises.push(
+      apiService.fetchGraphData(id1)
+        .then(result => {
+          if (result.data_points && result.data_points[id1]) {
+            setGraphData1({ [id1]: result.data_points[id1] });
+          }
+          setIsLoadingGraph1(false);
+        })
+        .catch(error => {
+          console.error('Error fetching graph for ID1:', error);
+          setGraphError(`ID1 Graph Error: ${error.message}`);
+          setIsLoadingGraph1(false);
+        })
+    );
+
+    // Fetch ID2 graph if valid
+    if (validationResult.hasValidId2) {
+      setIsLoadingGraph2(true);
+      promises.push(
+        apiService.fetchGraphData(id2)
+          .then(result => {
+            if (result.data_points && result.data_points[id2]) {
+              setGraphData2({ [id2]: result.data_points[id2] });
+            }
+            setIsLoadingGraph2(false);
+          })
+          .catch(error => {
+            console.error('Error fetching graph for ID2:', error);
+            setGraphError(prevError => prevError ? `${prevError}; ID2 Graph Error: ${error.message}` : `ID2 Graph Error: ${error.message}`);
+            setIsLoadingGraph2(false);
+          })
+      );
+    }
+
+    // Wait for all promises to complete
     try {
-      const result = await apiService.fetchGraphDataComparison(id1, id2);
-
-      if (!result.data_points || Object.keys(result.data_points).length === 0) {
-        throw new Error('No data points received from backend');
-      }
-
-      if (result.data_points[id1]) {
-        setGraphData1({ [id1]: result.data_points[id1] });
-      }
-      if (result.data_points[id2]) {
-        setGraphData2({ [id2]: result.data_points[id2] });
-      }
-
-      // Handle different types of warnings/messages
-      if (result.compatibility_warning) {
-        const warningMsg = result.compatibility_warning.message;
-        setGraphError(`⚠️ ${warningMsg}`);
-      } else if (result.missing_data && result.missing_data.length > 0) {
-        const missingDataMessage = result.missing_data.join('. ');
-        setGraphError(`⚠️ ${missingDataMessage}`);
-      }
-
+      await Promise.allSettled(promises);
     } catch (error) {
-      console.error('Graph loading error:', error);
-      setGraphError(`Error loading graph: ${error.message}`);
-    } finally {
-      setIsLoadingGraph(false);
+      console.error('Error in graph comparison fetch:', error);
     }
   }, []);
 
@@ -209,7 +225,6 @@ export const useGraphData = () => {
     graphData2,
     isLoadingGraph1,
     isLoadingGraph2,
-    isLoadingGraph,
     graphError,
     setGraphError,
     fetchGraphData,

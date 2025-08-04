@@ -30,6 +30,15 @@ static/
 # */migrations/*.py
 # */migrations/*.pyc
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
 # Node.js / React
 node_modules/
 npm-debug.log*

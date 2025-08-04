@@ -18,6 +18,7 @@ const RunIdInput = ({
 
   const handleCompareSubmit = (e) => {
     e.preventDefault();
+    // Allow comparison even if only ID1 is provided
     onSubmit(id1, id2);
   };
 
@@ -32,6 +33,7 @@ const RunIdInput = ({
   };
   return (
     <div className="dashboard-card">
+        {/* // <div className='inner-card'> */}
       <h3 className="card-title">
         {mode === 'single' ? 'Run ID Input' : 'Compare Run IDs'}
       </h3>
@@ -127,7 +129,7 @@ const RunIdInput = ({
               type="button" 
               className="btn btn-secondary" 
               onClick={handleCompareSubmit} 
-              disabled={isLoading1 || isLoading2}
+              disabled={isLoading1 || isLoading2 || !id1 || id1.length !== 9}
             >
               {(isLoading1 || isLoading2) ? (
                 <>
@@ -135,14 +137,15 @@ const RunIdInput = ({
                   Loading...
                 </>
               ) : (
-                ' Compare Runs'
+                'Compare Runs'
               )}
             </button>
           </div>
           {inputError && <div className="error">⚠️ {inputError}</div>}
         </div>
       )}
-    </div>
+      </div>
+    
   );
 };
 
