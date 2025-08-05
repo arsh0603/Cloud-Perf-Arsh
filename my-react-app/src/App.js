@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import './App.css';
 import './config/chartConfig'; // Register Chart.js components
 import { 
@@ -25,7 +25,10 @@ function App() {
   const runDataHook = useRunData();
   const graphDataHook = useGraphData();
   const cacheHook = useCacheStatus();
-  const compatibilityHook = useCompatibility(runDataHook.data1, runDataHook.data2);
+  
+  // Initialize compatibility hook with a temporary mode
+  const [tempMode, setTempMode] = useState('single');
+  const compatibilityHook = useCompatibility(runDataHook.data1, runDataHook.data2, tempMode, runDataHook.setError);
 
   // Use custom hook for app logic
   const {
@@ -39,21 +42,24 @@ function App() {
     setShowThroughputInMB,
     handleModeChange,
     handleIdChange,
-    handleRunSubmit,
-    handleGraphSubmit
+    handleRunSubmit
   } = useAppLogic(runDataHook, graphDataHook, cacheHook, compatibilityHook);
-
-  // UI state derived values
-  const uiState = useUIState(runDataHook, graphDataHook, compatibilityHook);
+  
+  // Update the temp mode when the actual mode changes
+  useEffect(() => {
+    setTempMode(mode);
+  }, [mode]);
 
   // Organize props for cleaner component passing
   const ids = { id1, id2 };
   const submittedIds = { submittedId1, submittedId2 };
+
+  // UI state derived values
+  const uiState = useUIState(runDataHook, graphDataHook, compatibilityHook, submittedIds);
   const handlers = {
     handleModeChange,
     handleIdChange,
     handleRunSubmit,
-    handleGraphSubmit,
     setShowThroughputInMB
   };
   const runDataProps = {
@@ -67,7 +73,8 @@ function App() {
     graphData1: graphDataHook.graphData1,
     graphData2: graphDataHook.graphData2,
     isLoadingGraph1: graphDataHook.isLoadingGraph1,
-    isLoadingGraph2: graphDataHook.isLoadingGraph2
+    isLoadingGraph2: graphDataHook.isLoadingGraph2,
+    graphError: graphDataHook.graphError
   };
 
   return (
@@ -98,6 +105,8 @@ function App() {
         submittedIds={submittedIds}
         uiState={{ ...uiState, showThroughputInMB, inputError }}
         chartRef={chartRef}
+        showThroughputInMB={showThroughputInMB}
+        setShowThroughputInMB={setShowThroughputInMB}
       />
 
       <LoadingIndicator 

@@ -34,53 +34,62 @@ export const useRunData = () => {
     }
   }, []);
 
-  const fetchComparisonRuns = useCallback(async (id1, id2) => {
+  const fetchComparisonRuns = useCallback(async (id1, id2, previousId1 = null, previousId2 = null, forceRefresh = false) => {
     const validationResult = validation.validateRunIdsForComparison(id1, id2);
     if (!validationResult.hasValidId1) {
       setError('First ID must be exactly 9 characters long.');
       return;
     }
 
-    // Clear previous data and errors
-    setData1(null);
-    setData2(null);
+    // Only clear errors, don't clear existing data unless IDs have changed or forceRefresh is true
     setError(null);
 
     // Fetch ID1 and ID2 separately for instant cache rendering
     const promises = [];
     
-    // Always fetch ID1
-    setIsLoading1(true);
-    promises.push(
-      apiService.fetchSingleDetails(id1)
-        .then(result => {
-          setData1(result);
-          setIsLoading1(false);
-        })
-        .catch(error => {
-          console.error('Error fetching ID1:', error);
-          setError(`ID1 Error: ${error.message}`);
-          setData1(null);
-          setIsLoading1(false);
-        })
-    );
-
-    // Fetch ID2 if valid
-    if (validationResult.hasValidId2) {
-      setIsLoading2(true);
+    // Check if ID1 has changed or force refresh - only fetch if it's different from previous or forced
+    const id1Changed = previousId1 !== id1 || forceRefresh;
+    if (id1Changed) {
+      setIsLoading1(true);
       promises.push(
-        apiService.fetchSingleDetails(id2)
+        apiService.fetchSingleDetails(id1)
           .then(result => {
-            setData2(result);
-            setIsLoading2(false);
+            setData1(result);
+            setIsLoading1(false);
           })
           .catch(error => {
-            console.error('Error fetching ID2:', error);
-            setError(prevError => prevError ? `${prevError}; ID2 Error: ${error.message}` : `ID2 Error: ${error.message}`);
-            setData2(null);
-            setIsLoading2(false);
+            console.error('Error fetching ID1:', error);
+            setError(`ID1 Error: ${error.message}`);
+            setData1(null);
+            setIsLoading1(false);
           })
       );
+    }
+
+    // Check if ID2 has changed or force refresh - only fetch if it's different from previous or forced
+    const id2Changed = previousId2 !== id2 || forceRefresh;
+    if (validationResult.hasValidId2) {
+      if (id2Changed) {
+        setIsLoading2(true);
+        promises.push(
+          apiService.fetchSingleDetails(id2)
+            .then(result => {
+              setData2(result);
+              setIsLoading2(false);
+            })
+            .catch(error => {
+              console.error('Error fetching ID2:', error);
+              setError(prevError => prevError ? `${prevError}; ID2 Error: ${error.message}` : `ID2 Error: ${error.message}`);
+              setData2(null);
+              setIsLoading2(false);
+            })
+        );
+      }
+    } else {
+      // Clear ID2 data if ID2 is invalid and it was previously valid
+      if (previousId2 && validation.isValidRunId(previousId2)) {
+        setData2(null);
+      }
     }
 
     // Wait for all promises to complete and return compatibility status
@@ -99,6 +108,16 @@ export const useRunData = () => {
     setError(null);
   }, []);
 
+  const clearData1 = useCallback(() => {
+    setData1(null);
+    setError(null);
+  }, []);
+
+  const clearData2 = useCallback(() => {
+    setData2(null);
+    setError(null);
+  }, []);
+
   return {
     data1,
     data2,
@@ -108,7 +127,9 @@ export const useRunData = () => {
     setError,
     fetchSingleRun,
     fetchComparisonRuns,
-    clearData
+    clearData,
+    clearData1,
+    clearData2
   };
 };
 
@@ -133,6 +154,8 @@ export const useGraphData = () => {
     setGraphError(null);
 
     try {
+      // Data is already cleared by useAppLogic, just fetch new data
+      
       const result = await apiService.fetchGraphData(runId);
 
       if (!result.data_points || Object.keys(result.data_points).length === 0) {
@@ -157,20 +180,19 @@ export const useGraphData = () => {
 
   const fetchGraphDataComparison = useCallback(async (id1, id2) => {
     const validationResult = validation.validateRunIdsForComparison(id1, id2);
+    
     if (!validationResult.hasValidId1) {
       setGraphError('First ID must be exactly 9 characters long.');
       return;
     }
 
-    // Clear previous graph data
-    setGraphData1(null);
-    setGraphData2(null);
+    // Only clear errors, data is already cleared by useAppLogic
     setGraphError(null);
 
-    // Fetch graph data separately for instant cache rendering
+    // Fetch graph data separately
     const promises = [];
     
-    // Always fetch ID1 graph
+    // Always fetch ID1 graph data
     setIsLoadingGraph1(true);
     promises.push(
       apiService.fetchGraphData(id1)
@@ -220,6 +242,16 @@ export const useGraphData = () => {
     setGraphError(null);
   }, []);
 
+  const clearGraphData1 = useCallback(() => {
+    setGraphData1(null);
+    setGraphError(null);
+  }, []);
+
+  const clearGraphData2 = useCallback(() => {
+    setGraphData2(null);
+    setGraphError(null);
+  }, []);
+
   return {
     graphData1,
     graphData2,
@@ -229,7 +261,9 @@ export const useGraphData = () => {
     setGraphError,
     fetchGraphData,
     fetchGraphDataComparison,
-    clearGraphData
+    clearGraphData,
+    clearGraphData1,
+    clearGraphData2
   };
 };
 
@@ -267,17 +301,29 @@ export const useCacheStatus = () => {
 };
 
 // Hook for compatibility checking
-export const useCompatibility = (data1, data2, mode) => {
+export const useCompatibility = (data1, data2, mode, setRunDataError) => {
   const [comparisonAllowed, setComparisonAllowed] = useState(undefined);
 
   useEffect(() => {
     if (mode === 'compare' && data1 && data2) {
       const result = compatibilityUtils.checkWorkloadCompatibility(data1, data2);
       setComparisonAllowed(result.compatible);
+      
+      // Set error message if incompatible
+      if (!result.compatible && setRunDataError) {
+        if (result.errorType === 'model') {
+          setRunDataError('Cannot compare runs with different model types');
+        } else if (result.errorType === 'workload') {
+          setRunDataError('Cannot compare runs with different workload types');
+        }
+      } else if (result.compatible && setRunDataError) {
+        // Clear error if compatible
+        setRunDataError(null);
+      }
     } else {
       setComparisonAllowed(undefined);
     }
-  }, [data1, data2, mode]);
+  }, [data1, data2, mode, setRunDataError]);
 
   return { comparisonAllowed, setComparisonAllowed };
 };

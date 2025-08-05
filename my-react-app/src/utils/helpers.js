@@ -73,44 +73,38 @@ export const dataUtils = {
   safeGet: (obj, key, defaultValue = 'N/A') => {
     const value = obj?.[key];
     return dataUtils.isEmpty(value) ? defaultValue : value;
-  },
+  }
+};
 
-  isURL: (value) => {
-    if (typeof value !== 'string') return false;
-    try {
-      new URL(value);
-      return value.startsWith('http://') || value.startsWith('https://');
-    } catch {
-      return false;
+// Workload-specific utilities
+export const workloadUtils = {
+  shouldDefaultToMB: (workloadType) => {
+    if (!workloadType || typeof workloadType !== 'string') {
+      return false; // Default to bytes/sec for unknown workloads
     }
+    
+    const lowerWorkload = workloadType.toLowerCase();
+    return lowerWorkload.includes('seqwrite_op_rate') || lowerWorkload.includes('seqread_op_rate');
   },
 
-  renderValue: (value, label = '') => {
-    if (dataUtils.isEmpty(value)) return 'N/A';
-    
-    // Check if the value is a URL
-    if (dataUtils.isURL(value)) {
-      // Create a more user-friendly link text based on the label
-      let linkText = '🔗 View Log';
-      if (label.toLowerCase().includes('harness')) {
-        linkText = '📋 Test Harness Log';
-      } else if (label.toLowerCase().includes('log')) {
-        linkText = '📄 View Log';
-      } else if (label.toLowerCase().includes('report')) {
-        linkText = '📊 View Report';
+  getDefaultThroughputUnit: (data1, data2 = null) => {
+    // If we have data, check workload types
+    if (data1 && data1['Workload Type']) {
+      const workload1ShouldUseMB = workloadUtils.shouldDefaultToMB(data1['Workload Type']);
+      
+      // In comparison mode, both workloads should be the same (compatibility check)
+      // but we'll check data2 as well for robustness
+      if (data2 && data2['Workload Type']) {
+        const workload2ShouldUseMB = workloadUtils.shouldDefaultToMB(data2['Workload Type']);
+        // Use MB/s if either workload suggests it (they should be the same in valid comparisons)
+        return workload1ShouldUseMB || workload2ShouldUseMB;
       }
       
-      return {
-        isLink: true,
-        url: value,
-        text: linkText
-      };
+      return workload1ShouldUseMB;
     }
     
-    return {
-      isLink: false,
-      text: value
-    };
+    // If no workload data available, default to bytes/sec (false)
+    return false;
   }
 };
 
@@ -176,18 +170,25 @@ export const chartUtils = {
   },
 
   formatChartData: (graphData, runIdPrefix, showThroughputInMB = true) => {
-    if (!graphData) return [];
+    if (!graphData) {
+      return [];
+    }
 
-    return Object.keys(graphData).map((runId, index) => {
+    const result = Object.keys(graphData).map((runId, index) => {
       const colors = chartUtils.generateColors(index, runIdPrefix === 'ID2' ? 60 : 0);
       
-      return {
-        label: `${runIdPrefix} - Run ${runId}`,
-        data: graphData[runId].map((point, pointIndex) => ({
+      const dataPoints = graphData[runId].map((point, pointIndex) => {
+        const processedPoint = {
           x: showThroughputInMB ? dataUtils.convertThroughputToMB(point.throughput) : point.throughput,
           y: point.latency,
           label: `Iteration ${pointIndex + 1}`
-        })),
+        };
+        return processedPoint;
+      });
+      
+      const dataset = {
+        label: `${runIdPrefix} - Run ${runId}`,
+        data: dataPoints,
         borderColor: colors.border,
         backgroundColor: colors.background,
         fill: false,
@@ -195,18 +196,24 @@ export const chartUtils = {
         pointRadius: 4,
         pointHoverRadius: 6
       };
+      
+      return dataset;
     });
+    
+    return result;
   },
 
   prepareChartData: (graphData1, graphData2, showThroughputInMB = true) => {
     const datasets = [];
     
     if (graphData1) {
-      datasets.push(...chartUtils.formatChartData(graphData1, 'ID1', showThroughputInMB));
+      const formattedData1 = chartUtils.formatChartData(graphData1, 'ID1', showThroughputInMB);
+      datasets.push(...formattedData1);
     }
     
     if (graphData2) {
-      datasets.push(...chartUtils.formatChartData(graphData2, 'ID2', showThroughputInMB));
+      const formattedData2 = chartUtils.formatChartData(graphData2, 'ID2', showThroughputInMB);
+      datasets.push(...formattedData2);
     }
     
     return { datasets };
@@ -305,6 +312,7 @@ export default {
   validation,
   urlUtils,
   dataUtils,
+  workloadUtils,
   compatibilityUtils,
   chartUtils,
   CONSTANTS

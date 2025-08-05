@@ -35,6 +35,7 @@ const DataSection = ({
           isLoading2={isLoading2}
           submittedId1={submittedId1}
           submittedId2={submittedId2}
+          error={error}
         />
       </div>
     </div>

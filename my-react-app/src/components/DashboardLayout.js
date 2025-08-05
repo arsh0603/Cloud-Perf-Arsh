@@ -1,5 +1,4 @@
 import React from 'react';
-import { GraphControls } from '../components';
 import { CSS_CLASSES } from '../constants/appConstants';
 import DataSection from './DataSection';
 import { ChartSection } from '../components';
@@ -13,39 +12,23 @@ const DashboardLayout = ({
   compatibilityProps,
   submittedIds,
   uiState,
-  chartRef
+  chartRef,
+  showThroughputInMB,
+  setShowThroughputInMB
 }) => {
   const { id1, id2 } = ids;
   const { 
     handleModeChange, 
     handleIdChange, 
-    handleRunSubmit, 
-    handleGraphSubmit,
-    setShowThroughputInMB 
+    handleRunSubmit
   } = handlers;
   
-  const { hasData, hasGraphData, disabledReason, showThroughputInMB, inputError } = uiState;
+  const { hasData, hasGraphData, disabledReason, inputError } = uiState;
   const { data1, data2, isLoading1, isLoading2 } = runDataProps;
-  const { graphData1, graphData2, isLoadingGraph1, isLoadingGraph2 } = graphDataProps;
+  const { graphData1, graphData2, isLoadingGraph1, isLoadingGraph2, graphError } = graphDataProps;
 
   return (
     <div className={CSS_CLASSES.DASHBOARD}>
-      {/* Graph Controls - Only show if we have data */}
-      {hasData && (
-        <GraphControls
-          mode={mode}
-          id1={id1}
-          id2={id2}
-          showThroughputInMB={showThroughputInMB}
-          onThroughputToggle={setShowThroughputInMB}
-          onGraphSubmit={handleGraphSubmit}
-          isLoadingGraph1={isLoadingGraph1}
-          isLoadingGraph2={isLoadingGraph2}
-          comparisonAllowed={compatibilityProps.comparisonAllowed}
-          disabledReason={disabledReason}
-        />
-      )}
-
       {/* Bottom Panel - Data and Charts */}
       <div className={`${CSS_CLASSES.BOTTOM_PANEL} ${hasData && hasGraphData ? CSS_CLASSES.BOTTOM_PANEL_BOTH : CSS_CLASSES.BOTTOM_PANEL_DATA}`}>
         {hasData && (
@@ -63,6 +46,7 @@ const DashboardLayout = ({
             graphData1={graphData1}
             graphData2={graphData2}
             showThroughputInMB={showThroughputInMB}
+            setShowThroughputInMB={setShowThroughputInMB}
             submittedId1={submittedIds.submittedId1}
             submittedId2={submittedIds.submittedId2}
             mode={mode}
@@ -71,7 +55,10 @@ const DashboardLayout = ({
             data2={data2}
             isLoading1={isLoading1}
             isLoading2={isLoading2}
+            isLoadingGraph1={isLoadingGraph1}
+            isLoadingGraph2={isLoadingGraph2}
             error={runDataProps.error}
+            graphError={graphError}
           />
         )}
       </div>
