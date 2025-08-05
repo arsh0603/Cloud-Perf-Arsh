@@ -13,7 +13,6 @@ from .services import (
 from .cache_manager import api_cache
 
 class FetchDetailsView(View):
-    """Modular view using service classes for fetching run details"""
     
     def get(self, request):
         id1 = request.GET.get('id1') or request.GET.get('id')  # Support both id1 and id parameters
