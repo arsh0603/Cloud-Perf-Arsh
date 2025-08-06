@@ -216,15 +216,6 @@ DJANGO_SETTINGS_MODULE=firstitr.settings python3 -m pytest tests/ -q
 # Run specific test files
 DJANGO_SETTINGS_MODULE=firstitr.settings python3 -m pytest tests/test_cache_manager.py -v
 ```
-
-**Test Coverage:**
-- **86 unit tests** with 100% pass rate
-- **6 test modules** covering all backend components
-- **3-second execution** time for full suite
-- **Comprehensive mocking** of external dependencies
-
-See [TEST_DOCUMENTATION.md](firstitr/TEST_DOCUMENTATION.md) for detailed testing information.
-
 ### Backend Health Check
 ```bash
 cd firstitr
